@@ -132,6 +132,27 @@
   .pulse-nudge{ font-size:11.5px; color:var(--stamp); margin-top:3px; font-family:var(--mono); text-decoration:none; display:inline-block; cursor:pointer; }
   .pulse-nudge:hover{ text-decoration:underline; }
 
+  /* ---------- activity feed ---------- */
+  .activity-panel{ max-width:1100px; margin:22px auto 0; padding:0 20px; }
+  .activity-head{ font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; opacity:0.5; margin-bottom:8px; }
+  .activity-feed{ display:flex; flex-direction:column; gap:2px; }
+  .activity-row{ font-size:13px; padding:6px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .activity-row em{ font-style:normal; font-family:var(--serif); }
+  .activity-time{ font-family:var(--mono); font-size:11px; opacity:0.45; white-space:nowrap; }
+
+  /* ---------- shelf toolbar ---------- */
+  .shelf-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:18px 0 22px; }
+  .add-book-btn{ background:var(--forest); color:var(--cream); border:none; border-radius:4px; padding:10px 14px; font-family:var(--mono); font-size:12.5px; letter-spacing:0.02em; cursor:pointer; min-height:40px; }
+  .add-book-btn:hover{ background:var(--forest-light); }
+  .shelf-controls{ display:flex; gap:8px; flex-wrap:wrap; }
+  .shelf-controls input, .shelf-controls select{ font-family:var(--sans); font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--card); min-height:38px; }
+  .shelf-controls input{ width:190px; }
+
+  /* ---------- add-book modal form ---------- */
+  .add-book-label{ display:block; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin:12px 0 5px; }
+  .add-book-input{ width:100%; font-family:var(--sans); font-size:14px; padding:9px 10px; border:1px solid var(--line); border-radius:4px; background:var(--cream); }
+  .stamp-btn.skip-btn{ font-size:9.5px; width:auto; height:44px; padding:0 10px; border-radius:22px; border-style:dashed; }
+
   /* ---------- sections ---------- */
   section{ max-width:1100px; margin:0 auto; padding:60px 20px 10px; }
   .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
@@ -253,6 +274,11 @@
     section{ padding:44px 16px 6px; }
     .pulse{ padding:0 16px; }
     .pulse-item{ flex:1 1 42%; padding:6px 12px; }
+    .activity-panel{ padding:0 16px; }
+    .shelf-toolbar{ flex-direction:column; align-items:stretch; }
+    .add-book-btn{ width:100%; }
+    .shelf-controls{ flex-direction:column; }
+    .shelf-controls input{ width:100%; }
 
     .popover{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; border-radius:14px 14px 0 0; max-height:80vh; overflow-y:auto; box-shadow:0 -10px 30px rgba(31,36,33,0.25); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); }
     .pill-btn{ padding:9px 11px; }
@@ -405,10 +431,28 @@
 
   <div class="pulse" id="pulseStrip"></div>
 
+  <div class="activity-panel">
+    <div class="activity-head">Recent activity</div>
+    <div class="activity-feed" id="activityFeed"></div>
+  </div>
+
   <section id="shelf">
     <div class="section-head">
       <h2>The Book Club</h2>
       <div class="sub">tap a cover to read &amp; stamp a rating<span id="shelfFilterChip"></span></div>
+    </div>
+    <div class="shelf-toolbar">
+      <button id="addBookBtn" class="add-book-btn" type="button">+ Add a book you've read</button>
+      <div class="shelf-controls">
+        <input type="text" id="shelfSearch" placeholder="Search title or author&hellip;">
+        <select id="shelfSort">
+          <option value="added">Reading order</option>
+          <option value="rating-desc">Highest rated</option>
+          <option value="rating-asc">Lowest rated</option>
+          <option value="unrated">Unrated first</option>
+          <option value="az">A&ndash;Z</option>
+        </select>
+      </div>
     </div>
     <div class="bookcase" id="bookcase"></div>
     <div class="shelf-legend">
@@ -559,6 +603,8 @@ async function authKnownOrTimeout(){
   let group = null;            // active group's data
   let groupId = null;
   let memberFilter = null;     // uid, when set the shelf shows only that member's rated books
+  let shelfSort = 'added';
+  let shelfSearch = '';
   let coverCache = {};         // { "title|author": {thumbnail, year} }
 
   // ================= toast =================
@@ -1072,12 +1118,24 @@ async function authKnownOrTimeout(){
     </div>`;
   }
 
+  function sortBooks(books){
+    const withAvg = books.map(b => ({ b, avg: bookAvg(b.id) }));
+    switch(shelfSort){
+      case 'rating-desc': withAvg.sort((x,y) => (y.avg ?? -1) - (x.avg ?? -1)); break;
+      case 'rating-asc': withAvg.sort((x,y) => (x.avg ?? 999) - (y.avg ?? 999)); break;
+      case 'unrated': withAvg.sort((x,y) => (x.avg===null?-1:1) - (y.avg===null?-1:1)); break;
+      case 'az': withAvg.sort((x,y) => x.b.title.localeCompare(y.b.title)); break;
+      default: withAvg.sort((x,y) => x.b.id - y.b.id); // 'added' — matches the N° reading-order badges
+    }
+    return withAvg.map(x => x.b);
+  }
+
   function renderShelf(){
     const el = document.getElementById('bookcase');
     const chip = document.getElementById('shelfFilterChip');
     let books = group.books;
     if(memberFilter){
-      books = group.books.filter(b => group.ratings[b.id] && group.ratings[b.id][memberFilter] !== undefined);
+      books = books.filter(b => group.ratings[b.id] && group.ratings[b.id][memberFilter] !== undefined);
       const name = nameForUid(memberFilter);
       chip.innerHTML = ` <span class="shelf-filter-chip">rated by ${name} <button type="button" id="clearShelfFilter">&times;</button></span>`;
       const clearBtn = document.getElementById('clearShelfFilter');
@@ -1085,10 +1143,16 @@ async function authKnownOrTimeout(){
     }else{
       chip.innerHTML = '';
     }
+    const q = shelfSearch.trim().toLowerCase();
+    if(q){
+      books = books.filter(b => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+    }
+    books = sortBooks(books);
     if(!books.length){
-      el.innerHTML = memberFilter
-        ? `<div class="empty-shelf">${nameForUid(memberFilter)} hasn't rated anything here yet.</div>`
-        : `<div class="empty-shelf">Nothing in the book club yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
+      let msg = "Nothing in the book club yet. Add a book you've already read, or suggest one below in Due Next for everyone to vote on.";
+      if(memberFilter) msg = `${nameForUid(memberFilter)} hasn't rated anything here yet.`;
+      else if(q) msg = `No books match "${shelfSearch.trim()}".`;
+      el.innerHTML = `<div class="empty-shelf">${msg}</div>`;
       return;
     }
     const perRow = booksPerRow();
@@ -1138,11 +1202,39 @@ async function authKnownOrTimeout(){
         const uid = card.dataset.uid;
         memberFilter = (memberFilter === uid) ? null : uid;
         renderShelf(); renderMembers();
-        if(memberFilter) document.getElementById('shelf').scrollIntoView({behavior:'smooth', block:'start'});
+        if(memberFilter){ const el = document.getElementById('shelf'); if(el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'start'}); }
       };
       card.addEventListener('click', toggle);
       card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }});
     });
+  }
+
+  function timeAgo(ts){
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if(s < 60) return 'just now';
+    const m = Math.floor(s/60); if(m < 60) return `${m}m ago`;
+    const h = Math.floor(m/60); if(h < 24) return `${h}h ago`;
+    const d = Math.floor(h/24); if(d < 7) return `${d}d ago`;
+    return new Date(ts).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  }
+
+  function renderActivity(){
+    const el = document.getElementById('activityFeed');
+    if(!group.activity || !group.activity.length){
+      el.innerHTML = `<div class="empty-note">Nothing yet &mdash; the first stamp starts the feed.</div>`;
+      return;
+    }
+    const items = [...group.activity].sort((a,b) => b.ts - a.ts).slice(0,6);
+    el.innerHTML = items.map(a=>{
+      const book = group.books.find(b => b.id === a.bookId);
+      const title = book ? book.title : 'a book';
+      const name = nameForUid(a.uid);
+      let line;
+      if(a.type === 'added') line = `<strong>${name}</strong> added <em>${title}</em>`;
+      else if(a.type === 'approved') line = `<strong>${name}</strong> moved <em>${title}</em> onto the shelf`;
+      else line = `<strong>${name}</strong> rated <em>${title}</em> ${a.rating}/5`;
+      return `<div class="activity-row"><span>${line}</span><span class="activity-time">${timeAgo(a.ts)}</span></div>`;
+    }).join('');
   }
   let resizeTimer, lastPerRow;
   window.addEventListener('resize', ()=>{
@@ -1161,6 +1253,16 @@ async function authKnownOrTimeout(){
     btn.disabled = false; btn.textContent = 'reload cover art';
   });
 
+  let shelfSearchTimer;
+  document.getElementById('shelfSearch').addEventListener('input', (e)=>{
+    clearTimeout(shelfSearchTimer);
+    shelfSearchTimer = setTimeout(()=>{ shelfSearch = e.target.value; renderShelf(); }, 150);
+  });
+  document.getElementById('shelfSort').addEventListener('change', (e)=>{
+    shelfSort = e.target.value;
+    renderShelf();
+  });
+
   // ================= book modal =================
   function openBookModal(id){
     const book = group.books.find(b=>b.id===id);
@@ -1170,6 +1272,80 @@ async function authKnownOrTimeout(){
   }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
   document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+  // ================= add a book (direct, no voting) =================
+  document.getElementById('addBookBtn').addEventListener('click', ()=>{
+    if(!myUid()){
+      const banner = document.getElementById('profileBanner'); if(banner.scrollIntoView) banner.scrollIntoView({behavior:'smooth', block:'start'});
+      toast('Sign in up top first.', true);
+      return;
+    }
+    renderAddBookModal();
+    document.getElementById('overlay').classList.add('open');
+  });
+
+  function renderAddBookModal(){
+    document.getElementById('modalCard').innerHTML = `
+      <button class="modal-close" id="modalCloseBtn" type="button">&times;</button>
+      <div class="modal-num">ADD A BOOK</div>
+      <div class="modal-title" style="font-size:21px;">Log a book you've read</div>
+      <p style="font-size:12.5px; opacity:0.65; margin:4px 0 4px; line-height:1.5;">Straight onto the shelf, no voting needed. Suggesting a book for <em>next</em> time? Use Due Next instead.</p>
+      <label class="add-book-label" for="addBookTitle">Title</label>
+      <input type="text" id="addBookTitle" class="add-book-input" placeholder="Book title">
+      <label class="add-book-label" for="addBookAuthor">Author</label>
+      <input type="text" id="addBookAuthor" class="add-book-input" placeholder="Author">
+      <label class="add-book-label" for="addBookSelector">Selected by</label>
+      <input type="text" id="addBookSelector" class="add-book-input" value="${myName()}" placeholder="Who picked it">
+      <div class="stamp-label" style="margin-top:16px;">Rate it now? (optional)</div>
+      <div class="stamp-row" id="addBookStampRow">
+        ${[0,1,2,3,4,5].map(n=>`<button type="button" class="stamp-btn" data-n="${n}">${n}</button>`).join('')}
+        <button type="button" class="stamp-btn skip-btn active" data-n="skip">skip</button>
+      </div>
+      <div class="field-msg" id="addBookMsg"></div>
+      <button class="go" id="addBookSubmit" type="button" style="margin-top:6px;">Add to the book club</button>
+    `;
+    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+    let chosenRating = null;
+    document.querySelectorAll('#addBookStampRow .stamp-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('#addBookStampRow .stamp-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        chosenRating = btn.dataset.n === 'skip' ? null : parseInt(btn.dataset.n);
+      });
+    });
+    document.getElementById('addBookTitle').focus();
+    document.getElementById('addBookSubmit').addEventListener('click', async ()=>{
+      const msg = document.getElementById('addBookMsg');
+      const title = document.getElementById('addBookTitle').value.trim();
+      const author = document.getElementById('addBookAuthor').value.trim();
+      const selector = document.getElementById('addBookSelector').value.trim() || myName();
+      if(!title || !author){ msg.textContent = 'Title and author are both needed.'; msg.className = 'field-msg err'; return; }
+      const btn = document.getElementById('addBookSubmit');
+      btn.disabled = true; btn.textContent = 'Adding…';
+      const meta = await fetchBookData(title, author);
+      const newBook = { id: group.nextBookId++, title, author, selector, addedAt: Date.now() };
+      group.books.push(newBook);
+      await ensureMembership();
+      if(chosenRating !== null){
+        if(!group.ratings[newBook.id]) group.ratings[newBook.id] = {};
+        group.ratings[newBook.id][myUid()] = chosenRating;
+        group.activity.push({type:'rating', uid:myUid(), bookId:newBook.id, rating:chosenRating, ts:Date.now()});
+      }else{
+        group.activity.push({type:'added', uid:myUid(), bookId:newBook.id, ts:Date.now()});
+      }
+      if(group.activity.length>8) group.activity = group.activity.slice(-8);
+      const key = coverKey(title, author);
+      if(meta.thumbnail) coverCache[key] = { thumbnail: meta.thumbnail, year: meta.year };
+      const groupSaved = await saveGroup();
+      await saveCoverCache();
+      btn.disabled = false; btn.textContent = 'Add to the book club';
+      if(groupSaved){
+        toast('Added to the book club.');
+        closeModal();
+        renderShelf(); renderLog(); renderPulse(); renderMembers(); renderActivity(); renderProfileWidget();
+      } // else: storageSet already surfaced the specific error, leave the form open so nothing typed is lost
+    });
+  }
 
   function renderModal(book){
     const ratings = group.ratings[book.id] || {};
@@ -1206,11 +1382,11 @@ async function authKnownOrTimeout(){
         await ensureMembership();
         if(!group.ratings[book.id]) group.ratings[book.id] = {};
         group.ratings[book.id][myUid()] = n;
-        group.activity.push({uid:myUid(), bookId:book.id, rating:n, ts:Date.now()});
+        group.activity.push({type:'rating', uid:myUid(), bookId:book.id, rating:n, ts:Date.now()});
         if(group.activity.length>8) group.activity = group.activity.slice(-8);
         const saved = await saveGroup();
         if(saved) toast('Stamped.');
-        renderModal(book); renderShelf(); renderPulse(); renderLog();
+        renderModal(book); renderShelf(); renderPulse(); renderLog(); renderActivity(); renderMembers();
       });
     });
   }
@@ -1300,13 +1476,15 @@ async function authKnownOrTimeout(){
         const newBook = { id: group.nextBookId++, title:u.title, author:u.author, selector:nameForUid(u.suggestedByUid), addedAt:Date.now() };
         group.books.push(newBook);
         group.upcoming.splice(idx,1);
+        group.activity.push({type:'approved', uid:myUid(), bookId:newBook.id, ts:Date.now()});
+        if(group.activity.length>8) group.activity = group.activity.slice(-8);
         const key = coverKey(u.title, u.author);
         if(u.cover) coverCache[key] = { thumbnail:u.cover, year:u.year||null };
         const [groupSaved, coversSaved] = await Promise.all([saveGroup(), saveCoverCache()]);
         if(groupSaved){
           toast(`Added to the book club.`);
         } // else: storageSet already surfaced the specific error
-        renderUpcoming(); renderShelf(); renderLog(); renderPulse(); renderProfileWidget();
+        renderUpcoming(); renderShelf(); renderLog(); renderPulse(); renderProfileWidget(); renderActivity();
       });
     });
   }
@@ -1316,7 +1494,7 @@ async function authKnownOrTimeout(){
     const author = document.getElementById('suggAuthor').value.trim();
     if(!title || !author) return;
     if(!myUid()){
-      document.getElementById('profileBanner').scrollIntoView({behavior:'smooth', block:'start'});
+      const banner = document.getElementById('profileBanner'); if(banner.scrollIntoView) banner.scrollIntoView({behavior:'smooth', block:'start'});
       toast('Sign in up top first.', true);
       return;
     }
@@ -1344,6 +1522,8 @@ async function authKnownOrTimeout(){
     lastPerRow = booksPerRow();
     renderShelf();
     renderUpcoming();
+    renderMembers();
+    renderActivity();
     renderLog();
     renderShare();
   }
@@ -1393,7 +1573,7 @@ async function authKnownOrTimeout(){
       profile = { activeGroup:null, joinedGroups:[] };
     }
     renderGroupWidget();
-    if(group){ renderPulse(); renderUpcoming(); renderLog(); renderShelf(); }
+    if(group){ renderPulse(); renderUpcoming(); renderLog(); renderShelf(); renderMembers(); renderActivity(); }
   };
 
   let bootDone = false;
