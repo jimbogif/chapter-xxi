@@ -129,7 +129,8 @@
   .pulse-item:first-child{ border-left:none; padding-left:0; }
   .pulse-num{ font-family:var(--mono); font-size:26px; font-weight:700; color:var(--forest); }
   .pulse-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin-top:2px;}
-  .pulse-nudge{ font-size:11.5px; color:var(--stamp); margin-top:3px; font-family:var(--mono); }
+  .pulse-nudge{ font-size:11.5px; color:var(--stamp); margin-top:3px; font-family:var(--mono); text-decoration:none; display:inline-block; cursor:pointer; }
+  .pulse-nudge:hover{ text-decoration:underline; }
 
   /* ---------- sections ---------- */
   section{ max-width:1100px; margin:0 auto; padding:60px 20px 10px; }
@@ -176,10 +177,12 @@
   .up-author{ font-size:12.5px; opacity:0.65; margin-top:2px; }
   .up-meta{ font-family:var(--mono); font-size:10.5px; opacity:0.55; margin-top:6px; text-transform:uppercase; letter-spacing:0.04em; }
   .up-actions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-  .vote-btn, .read-btn{ font-family:var(--mono); font-size:11px; letter-spacing:0.03em; background:none; border:1px solid var(--forest); color:var(--forest); padding:6px 9px; border-radius:20px; cursor:pointer; min-height:32px; }
+  .vote-btn, .read-btn, .remove-btn{ font-family:var(--mono); font-size:11px; letter-spacing:0.03em; background:none; border:1px solid var(--forest); color:var(--forest); padding:6px 9px; border-radius:20px; cursor:pointer; min-height:32px; }
   .vote-btn.voted{ background:var(--forest); color:var(--cream); }
   .vote-btn:hover, .read-btn:hover{ background:var(--forest); color:var(--cream); }
   .read-btn{ border-color:var(--stamp); color:var(--stamp); }
+  .remove-btn{ border-color:var(--line); color:var(--ink); opacity:0.55; }
+  .remove-btn:hover{ border-color:var(--stamp); color:var(--stamp); opacity:1; background:none; }
   .read-btn:hover{ background:var(--stamp); color:var(--cream); }
 
   .suggest-form{ margin-top:18px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px dashed var(--line); padding-top:18px; }
@@ -187,6 +190,17 @@
   .suggest-form button{ background:var(--stamp); color:var(--cream); border:none; border-radius:4px; padding:9px 14px; font-family:var(--mono); font-size:12px; letter-spacing:0.03em; cursor:pointer; min-height:42px; }
   .suggest-form button:hover{ opacity:0.9; }
   .suggest-form button:disabled{ opacity:0.5; cursor:default; }
+
+  /* ---------- members ---------- */
+  .members-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(170px,1fr)); gap:12px; }
+  .member-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:14px; cursor:pointer; transition:border-color 0.15s ease, background 0.15s ease; }
+  .member-card:hover{ border-color:var(--forest); }
+  .member-card.active{ border-color:var(--forest); background:rgba(44,74,59,0.08); }
+  .member-name{ font-family:var(--serif); font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .member-you-tag{ font-family:var(--mono); font-size:9px; color:var(--stamp); text-transform:uppercase; letter-spacing:0.04em; border:1px solid var(--stamp); border-radius:10px; padding:1px 6px; }
+  .member-stats{ font-family:var(--mono); font-size:11.5px; opacity:0.65; margin-top:6px; }
+  .shelf-filter-chip{ display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; background:var(--card); border:1px dashed var(--stamp); border-radius:20px; padding:4px 10px; margin-left:10px; color:var(--stamp); }
+  .shelf-filter-chip button{ background:none; border:none; cursor:pointer; color:var(--stamp); font-weight:700; font-family:var(--mono); font-size:12px; padding:0; }
 
   /* ---------- the log ---------- */
   .log-list{ list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
@@ -281,6 +295,7 @@
     <nav class="tabs">
       <a href="#shelf">The Book Club</a>
       <a href="#due-next">Due Next</a>
+      <a href="#members">Members</a>
       <a href="#the-log">The Log</a>
     </nav>
     <div class="header-controls">
@@ -393,7 +408,7 @@
   <section id="shelf">
     <div class="section-head">
       <h2>The Book Club</h2>
-      <div class="sub">tap a cover to read &amp; stamp a rating</div>
+      <div class="sub">tap a cover to read &amp; stamp a rating<span id="shelfFilterChip"></span></div>
     </div>
     <div class="bookcase" id="bookcase"></div>
     <div class="shelf-legend">
@@ -420,6 +435,14 @@
       <input type="text" id="suggAuthor" placeholder="Author">
       <button id="suggBtn" type="button">Put it forward</button>
     </div>
+  </section>
+
+  <section id="members">
+    <div class="section-head">
+      <h2>Members</h2>
+      <div class="sub">click a member to filter the book club by their ratings</div>
+    </div>
+    <div class="members-grid" id="membersGrid"></div>
   </section>
 
   <section id="the-log">
@@ -535,6 +558,7 @@ async function authKnownOrTimeout(){
   let groupsRegistry = {};     // { groupId: {name, createdAt} }
   let group = null;            // active group's data
   let groupId = null;
+  let memberFilter = null;     // uid, when set the shelf shows only that member's rated books
   let coverCache = {};         // { "title|author": {thumbnail, year} }
 
   // ================= toast =================
@@ -679,6 +703,13 @@ async function authKnownOrTimeout(){
   function nameForUid(uid){
     if(group && group.members && group.members[uid]) return group.members[uid].name;
     return 'a club member';
+  }
+  function memberStats(uid){
+    let count = 0, total = 0;
+    Object.values(group.ratings || {}).forEach(bookRatings => {
+      if(bookRatings[uid] !== undefined){ count++; total += bookRatings[uid]; }
+    });
+    return { count, avg: count ? total / count : null };
   }
   async function ensureMembership(){
     if(!group.members) group.members = {};
@@ -937,7 +968,7 @@ async function authKnownOrTimeout(){
       <div class="pulse-item">
         <div class="pulse-num">${unrated}</div>
         <div class="pulse-label">${myUid() ? 'still awaiting your stamp' : 'sign in to see yours'}</div>
-        ${myUid() && unrated>0 ? '<div class="pulse-nudge">worth a visit to the book club &darr;</div>' : ''}
+        ${myUid() && unrated>0 ? `<a href="#shelf" class="pulse-nudge">stamp your missing ${unrated} &darr;</a>` : ''}
       </div>
       <div class="pulse-item"><div class="pulse-num">${group.activity.length}</div><div class="pulse-label">recent stamps logged</div></div>
     `;
@@ -1043,13 +1074,26 @@ async function authKnownOrTimeout(){
 
   function renderShelf(){
     const el = document.getElementById('bookcase');
-    if(!group.books.length){
-      el.innerHTML = `<div class="empty-shelf">Nothing in the book club yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
+    const chip = document.getElementById('shelfFilterChip');
+    let books = group.books;
+    if(memberFilter){
+      books = group.books.filter(b => group.ratings[b.id] && group.ratings[b.id][memberFilter] !== undefined);
+      const name = nameForUid(memberFilter);
+      chip.innerHTML = ` <span class="shelf-filter-chip">rated by ${name} <button type="button" id="clearShelfFilter">&times;</button></span>`;
+      const clearBtn = document.getElementById('clearShelfFilter');
+      if(clearBtn) clearBtn.addEventListener('click', ()=>{ memberFilter = null; renderShelf(); renderMembers(); });
+    }else{
+      chip.innerHTML = '';
+    }
+    if(!books.length){
+      el.innerHTML = memberFilter
+        ? `<div class="empty-shelf">${nameForUid(memberFilter)} hasn't rated anything here yet.</div>`
+        : `<div class="empty-shelf">Nothing in the book club yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
       return;
     }
     const perRow = booksPerRow();
     const rows = [];
-    for(let i=0;i<group.books.length;i+=perRow){ rows.push(group.books.slice(i, i+perRow)); }
+    for(let i=0;i<books.length;i+=perRow){ rows.push(books.slice(i, i+perRow)); }
     el.innerHTML = rows.map(row=>`
       <div class="shelf-row-wrap">
         <div class="shelf-row">${row.map(coverCardHtml).join('')}</div>
@@ -1065,6 +1109,39 @@ async function authKnownOrTimeout(){
         const fallback = img.nextElementSibling;
         if(fallback && fallback.classList.contains('cover-fallback')) fallback.style.display = 'flex';
       }, { once:true });
+    });
+  }
+
+  function renderMembers(){
+    const el = document.getElementById('membersGrid');
+    const members = Object.keys(group.members || {});
+    if(!members.length){
+      el.innerHTML = `<div class="empty-note">No one's signed in here yet — be the first.</div>`;
+      return;
+    }
+    const sorted = members
+      .map(uid => ({ uid, name: group.members[uid].name, stats: memberStats(uid) }))
+      .sort((a,b) => b.stats.count - a.stats.count || a.name.localeCompare(b.name));
+    el.innerHTML = sorted.map(m => {
+      const you = m.uid === myUid() ? '<span class="member-you-tag">you</span>' : '';
+      const statsText = m.stats.count
+        ? `${m.stats.count} book${m.stats.count===1?'':'s'} rated &middot; avg ${m.stats.avg.toFixed(1)}/5`
+        : 'no ratings yet';
+      const active = memberFilter === m.uid ? ' active' : '';
+      return `<div class="member-card${active}" data-uid="${m.uid}" tabindex="0" role="button" aria-label="Filter by ${m.name}">
+        <div class="member-name">${m.name} ${you}</div>
+        <div class="member-stats">${statsText}</div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.member-card').forEach(card=>{
+      const toggle = ()=>{
+        const uid = card.dataset.uid;
+        memberFilter = (memberFilter === uid) ? null : uid;
+        renderShelf(); renderMembers();
+        if(memberFilter) document.getElementById('shelf').scrollIntoView({behavior:'smooth', block:'start'});
+      };
+      card.addEventListener('click', toggle);
+      card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }});
     });
   }
   let resizeTimer, lastPerRow;
@@ -1173,6 +1250,7 @@ async function authKnownOrTimeout(){
       const voted = myUid() && u.votes.includes(myUid());
       const approved = u.votes.length >= APPROVAL_VOTES_NEEDED;
       const readLabel = approved ? 'mark as read' : `needs ${APPROVAL_VOTES_NEEDED - u.votes.length} more vote${APPROVAL_VOTES_NEEDED - u.votes.length===1?'':'s'}`;
+      const mine = myUid() && u.suggestedByUid === myUid();
       return `<div class="up-card">
         <div class="up-cover">${u.cover?`<img src="${u.cover}" alt="Cover of ${u.title}">`:''}</div>
         <div>
@@ -1184,6 +1262,7 @@ async function authKnownOrTimeout(){
               ${u.votes.length} vote${u.votes.length===1?'':'s'} ${voted?'&middot; yours':''}
             </button>
             <button class="read-btn" data-idx="${idx}" data-action="read" ${(myUid() && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the book club`}">${readLabel}</button>
+            ${mine ? `<button class="remove-btn" data-idx="${idx}" data-action="remove" title="Remove your suggestion">remove</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -1197,6 +1276,18 @@ async function authKnownOrTimeout(){
         const pos = u.votes.indexOf(myUid());
         if(pos>=0) u.votes.splice(pos,1); else u.votes.push(myUid());
         await saveGroup();
+        renderUpcoming();
+      });
+    });
+    el.querySelectorAll('[data-action="remove"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!myUid()) return;
+        const idx = parseInt(btn.dataset.idx);
+        const u = group.upcoming[idx];
+        if(u.suggestedByUid !== myUid()) return; // guard — only the suggester can remove it
+        group.upcoming.splice(idx,1);
+        const saved = await saveGroup();
+        if(saved) toast('Suggestion removed.');
         renderUpcoming();
       });
     });
@@ -1275,6 +1366,8 @@ async function authKnownOrTimeout(){
   }
 
   // ================= boot =================
+  let pendingReferralCode = null;
+
   window.__adleyOnAuthChange = async function(user){
     if(!bootDone) return; // initial boot() below handles the first resolution itself
     renderProfileWidget();
@@ -1282,6 +1375,14 @@ async function authKnownOrTimeout(){
       await loadProfile();
       if(group){
         await ensureMembership();
+      }else if(pendingReferralCode){
+        // They arrived via an invite link but the initial (possibly signed-out) load
+        // couldn't read it — now that they're signed in, try that exact code again
+        // before falling back to whatever club they'd previously joined.
+        const res = await joinGroupByCode(pendingReferralCode);
+        pendingReferralCode = null;
+        if(res.ok){ await activateGroup(); return; }
+        toast(res.msg, true);
       }else if(profile.activeGroup){
         // Returning user, signing in from the gate screen — jump straight to their club
         // instead of leaving them stuck on the generic picker.
@@ -1313,7 +1414,10 @@ async function authKnownOrTimeout(){
       const gParam = params.get('g');
       if(gParam){
         const res = await joinGroupByCode(gParam);
-        if(!res.ok){ toast(res.msg, true); }
+        if(!res.ok){
+          pendingReferralCode = gParam; // retried automatically once they sign in — see __adleyOnAuthChange
+          toast(res.msg, true);
+        }
       }else if(profile.activeGroup){
         const data = await loadGroup(profile.activeGroup);
         if(data){ groupId = profile.activeGroup; group = data; }
