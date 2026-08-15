@@ -322,7 +322,6 @@
 <div class="profile-banner" id="profileBanner" style="display:none;">
   <div class="banner-row" id="bannerLoggedOut">
     <span class="banner-prompt">Who's reading?</span>
-    <select id="memberSelect"></select>
     <input type="text" id="memberNew" placeholder="Type your name">
     <button class="banner-go" id="profileGo" type="button">Take my seat</button>
     <span class="banner-or">or</span>
@@ -700,10 +699,6 @@ async function authReadyOrTimeout(){
 
   // ================= rendering: header controls =================
   function renderProfileWidget(){
-    const sel = document.getElementById('memberSelect');
-    const known = Array.from(new Set((group ? group.books.map(b=>b.selector) : []))).sort();
-    sel.innerHTML = '<option value="">— choose —</option>' + known.map(n=>`<option value="${n}">${n}</option>`).join('');
-
     const loggedOut = document.getElementById('bannerLoggedOut');
     const loggedIn = document.getElementById('bannerLoggedIn');
     if(profile.name){
@@ -783,12 +778,13 @@ async function authReadyOrTimeout(){
     return true;
   }
 
+  document.getElementById('memberNew').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('profileGo').click(); }
+  });
   document.getElementById('profileGo').addEventListener('click', async ()=>{
     const msg = document.getElementById('profileMsg');
-    const sel = document.getElementById('memberSelect').value;
-    const typed = document.getElementById('memberNew').value.trim();
-    const name = typed || sel;
-    if(!name){ msg.textContent = 'Pick a name from the list, or type a new one.'; msg.className='field-msg err'; return; }
+    const name = document.getElementById('memberNew').value.trim();
+    if(!name){ msg.textContent = 'Type your name to take a seat.'; msg.className='field-msg err'; return; }
     const goBtn = document.getElementById('profileGo');
     goBtn.disabled = true; goBtn.textContent = 'Seating you…';
     try{
