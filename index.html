@@ -324,8 +324,6 @@
     <span class="banner-prompt">Who's reading?</span>
     <input type="text" id="memberNew" placeholder="Type your name">
     <button class="banner-go" id="profileGo" type="button">Take my seat</button>
-    <span class="banner-or">or</span>
-    <button class="banner-google" id="googleSignInBtn" type="button">Sign in with Google</button>
     <span class="field-msg" id="profileMsg"></span>
   </div>
   <div class="banner-row" id="bannerLoggedIn" style="display:none;">
@@ -417,7 +415,7 @@
   <section id="due-next">
     <div class="section-head">
       <h2>Due Next</h2>
-      <div class="sub">what's on the table for the next meet</div>
+      <div class="sub">suggest a book &middot; 2 votes moves it to the shelf</div>
     </div>
     <div class="upcoming-grid" id="upcomingGrid"></div>
     <div class="suggest-form">
@@ -467,7 +465,6 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 window.__adleyModuleRan = true;
 
@@ -481,27 +478,14 @@ const firebaseConfig = {
   measurementId: "G-24WMB3VSKF"
 };
 
-let fbApp, db, auth;
+let fbApp, db;
 let firebaseInitError = null;
 try{
   fbApp = initializeApp(firebaseConfig);
   db = getFirestore(fbApp);
-  auth = getAuth(fbApp);
 }catch(e){
   console.error('Firebase init failed', e);
   firebaseInitError = e;
-}
-
-let authReadyResolve;
-const authReady = new Promise(res => { authReadyResolve = res; });
-if(auth){
-  onAuthStateChanged(auth, (user) => { if(user) authReadyResolve(user); });
-  signInAnonymously(auth).catch(e => {
-    console.error('anonymous sign-in failed', e);
-  });
-}
-async function authReadyOrTimeout(){
-  return Promise.race([ authReady, new Promise(r => setTimeout(r, 8000)) ]);
 }
 
 (function(){
@@ -551,23 +535,40 @@ async function authReadyOrTimeout(){
     toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 3200);
   }
 
-  // ================= storage helpers (Firestore-backed, defensive) =================
-  function docRefFor(key, shared){
-    if(shared) return doc(db, 'shared', key);
-    if(!auth.currentUser) throw new Error('not signed in yet');
-    return doc(db, 'users', auth.currentUser.uid, 'private', key);
+  // ================= storage helpers =================
+  // Personal (per-device) data lives in localStorage — this is a real hosted site now,
+  // not a Claude artifact preview, so ordinary browser storage is the right tool.
+  // Shared (club) data lives in Firestore under /shared/{key}.
+  const LOCAL_PREFIX = 'adley:';
+  function localGet(key){
+    try{
+      const raw = localStorage.getItem(LOCAL_PREFIX + key);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ console.error('local read failed for', key, e); return null; }
+  }
+  function localSet(key, value){
+    try{
+      localStorage.setItem(LOCAL_PREFIX + key, JSON.stringify(value));
+      return true;
+    }catch(e){
+      console.error('local write failed for', key, e);
+      toast('Could not save on this device — your browser may be blocking storage.', true);
+      return false;
+    }
   }
   async function storageGet(key, shared){
+    if(!shared) return localGet(key);
     try{
-      const snap = await getDoc(docRefFor(key, shared));
+      const snap = await getDoc(doc(db, 'shared', key));
       if(!snap.exists()) return null;
       const data = snap.data();
       return data && data.value ? JSON.parse(data.value) : null;
     }catch(e){ console.error('storageGet failed for', key, e); return null; }
   }
   async function storageSet(key, value, shared){
+    if(!shared) return localSet(key, value);
     try{
-      await setDoc(docRefFor(key, shared), { value: JSON.stringify(value), updatedAt: Date.now() });
+      await setDoc(doc(db, 'shared', key), { value: JSON.stringify(value), updatedAt: Date.now() });
       return true;
     }catch(e){
       console.error('storage write failed for', key, e);
@@ -798,18 +799,6 @@ async function authReadyOrTimeout(){
     }
   });
 
-  document.getElementById('googleSignInBtn').addEventListener('click', async ()=>{
-    const msg = document.getElementById('profileMsg');
-    try{
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      const gname = result.user.displayName || 'Reader';
-      await seatAs(gname);
-    }catch(e){
-      console.error('google sign-in failed', e);
-      msg.textContent = "Google sign-in didn't work — try again, or just type a name."; msg.className = 'field-msg err';
-    }
-  });
-
   document.getElementById('reloginBtn').addEventListener('click', async ()=>{
     const msg = document.getElementById('reloginMsg');
     const raw = document.getElementById('reloginInput').value.trim().toUpperCase();
@@ -909,6 +898,7 @@ async function authReadyOrTimeout(){
   // ================= pulse =================
   function renderPulse(){
     const total = group.books.length;
+    document.getElementById('heroTitle').innerHTML = `${total} book${total===1?'':'s'}.<br>And counting.`;
     const allAvgs = group.books.map(b=>bookAvg(b.id)).filter(v=>v!==null);
     const groupAvg = allAvgs.length ? (allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length).toFixed(1) : '—';
     const unrated = profile.name ? group.books.filter(b=>{
@@ -1144,6 +1134,8 @@ async function authReadyOrTimeout(){
   }
 
   // ================= due next =================
+  const APPROVAL_VOTES_NEEDED = 2; // how many votes a suggestion needs before it can move to the shelf
+
   function renderUpcoming(){
     const el = document.getElementById('upcomingGrid');
     if(!group.upcoming.length){
@@ -1152,6 +1144,8 @@ async function authReadyOrTimeout(){
     }
     el.innerHTML = group.upcoming.map((u,idx)=>{
       const voted = profile.name && u.votes.includes(profile.name);
+      const approved = u.votes.length >= APPROVAL_VOTES_NEEDED;
+      const readLabel = approved ? 'mark as read' : `needs ${APPROVAL_VOTES_NEEDED - u.votes.length} more vote${APPROVAL_VOTES_NEEDED - u.votes.length===1?'':'s'}`;
       return `<div class="up-card">
         <div class="up-cover">${u.cover?`<img src="${u.cover}" alt="Cover of ${u.title}">`:''}</div>
         <div>
@@ -1162,7 +1156,7 @@ async function authReadyOrTimeout(){
             <button class="vote-btn ${voted?'voted':''}" data-idx="${idx}" data-action="vote" ${profile.name?'':'disabled'}>
               ${u.votes.length} vote${u.votes.length===1?'':'s'} ${voted?'&middot; yours':''}
             </button>
-            <button class="read-btn" data-idx="${idx}" data-action="read" ${profile.name?'':'disabled'}>mark as read</button>
+            <button class="read-btn" data-idx="${idx}" data-action="read" ${(profile.name && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the shelf`}">${readLabel}</button>
           </div>
         </div>
       </div>`;
@@ -1183,6 +1177,7 @@ async function authReadyOrTimeout(){
         if(!profile.name) return;
         const idx = parseInt(btn.dataset.idx);
         const u = group.upcoming[idx];
+        if(u.votes.length < APPROVAL_VOTES_NEEDED) return; // guard against stale/disabled-bypass clicks
         const newBook = { id: group.nextBookId++, title:u.title, author:u.author, selector:u.suggestedBy, addedAt:Date.now() };
         group.books.push(newBook);
         group.upcoming.splice(idx,1);
@@ -1255,10 +1250,6 @@ async function authReadyOrTimeout(){
         toast('Could not connect to the club\'s database. Try refreshing.', true);
         document.getElementById('gateScreen').style.display = 'block';
         return;
-      }
-      await authReadyOrTimeout();
-      if(!auth.currentUser){
-        toast('Having trouble connecting — check your connection and refresh if things look stuck.', true);
       }
 
       await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry(), loadCoverCache()]);
