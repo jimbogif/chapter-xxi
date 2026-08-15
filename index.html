@@ -175,6 +175,20 @@
   .cover-tab{ position:absolute; top:8px; left:0; background:var(--forest); color:var(--cream); font-family:var(--mono); font-size:9.5px; padding:2px 6px 2px 5px; border-radius:0 3px 3px 0; letter-spacing:0.03em; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
   .cover-badge{ position:absolute; bottom:-9px; right:-6px; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream); font-family:var(--mono); font-weight:700; font-size:11px; color:var(--cream); box-shadow:0 3px 6px rgba(0,0,0,0.3); }
   .cover-badge.unrated{ background:var(--card); color:var(--ink); opacity:0.7; border-style:dashed; }
+  .cover-remove{
+    position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%;
+    background:var(--ink); color:var(--cream); border:2px solid var(--cream);
+    font-family:var(--mono); font-weight:700; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+    opacity:0; transform:scale(0.8); transition:opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35);
+  }
+  .cover-card:hover .cover-remove, .cover-card:focus-within .cover-remove{ opacity:1; transform:scale(1); }
+  .cover-remove:hover{ background:var(--stamp); }
+  .cover-remove.confirming{
+    width:auto; height:auto; border-radius:12px; padding:5px 10px; font-size:9.5px;
+    letter-spacing:0.03em; text-transform:uppercase; background:var(--stamp); opacity:1; transform:scale(1);
+  }
   .cover-caption{ font-size:11px; line-height:1.3; }
   .cover-caption .t{ font-family:var(--serif); font-weight:700; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cover-caption .a{ opacity:0.55; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -279,6 +293,7 @@
     .add-book-btn{ width:100%; }
     .shelf-controls{ flex-direction:column; }
     .shelf-controls input{ width:100%; }
+    .cover-remove{ opacity:0.85; transform:scale(1); } /* no hover on touch — keep it reachable */
 
     .popover{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; border-radius:14px 14px 0 0; max-height:80vh; overflow-y:auto; box-shadow:0 -10px 30px rgba(31,36,33,0.25); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); }
     .pill-btn{ padding:9px 11px; }
@@ -677,13 +692,27 @@ async function authKnownOrTimeout(){
   // ratings and members are merged key-by-key (mine wins only for my own key);
   // activity is a union, deduped, capped. `books`/`upcoming` structural edits (adding
   // a book, approving a suggestion) are rarer and still last-write-wins.
-  async function saveGroup(){
+  async function saveGroup(structural){
     try{
       const remote = await storageGet('group-' + groupId, true);
       if(remote){
-        group.ratings = mergeRatings(remote.ratings, group.ratings);
+        if(!structural){
+          // This save has no local intent to change books/upcoming — take the
+          // server's freshest copy of them so a stale tab can never silently
+          // undo someone else's add/remove/vote just by rating a book.
+          group.books = remote.books || group.books;
+          group.upcoming = remote.upcoming || group.upcoming;
+          group.nextBookId = Math.max(group.nextBookId || 1, remote.nextBookId || 1);
+        }
+        const validBookIds = new Set(group.books.map(b => String(b.id)));
+        const mergedRatings = mergeRatings(remote.ratings, group.ratings);
+        group.ratings = {};
+        for(const [bid, r] of Object.entries(mergedRatings)){
+          if(validBookIds.has(String(bid))) group.ratings[bid] = r; // drop ratings for books removed locally
+        }
         group.members = Object.assign({}, remote.members, group.members);
-        group.activity = mergeActivity(remote.activity, group.activity);
+        group.activity = mergeActivity(remote.activity, group.activity)
+          .filter(a => validBookIds.has(String(a.bookId))); // same for activity about removed books
       }
     }catch(e){ console.error('pre-save merge fetch failed, saving local state as-is', e); }
     return storageSet('group-' + groupId, group, true);
@@ -777,7 +806,7 @@ async function authKnownOrTimeout(){
     const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1, members:{} };
     groupId = id; group = newGroup;
     groupsRegistry[id] = { name, createdAt:Date.now() };
-    const [groupSaved, registrySaved] = await Promise.all([saveGroup(), saveGroupsRegistry()]);
+    const [groupSaved, registrySaved] = await Promise.all([saveGroup(true), saveGroupsRegistry()]);
     if(!profile.joinedGroups.includes(id)) profile.joinedGroups.push(id);
     profile.activeGroup = id;
     await safeSaveProfile();
@@ -812,7 +841,7 @@ async function authKnownOrTimeout(){
       data = { name:'Adley St Book Club', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1, members:{} };
       groupId = FLAGSHIP_ID; group = data;
       groupsRegistry[FLAGSHIP_ID] = { name:'Adley St Book Club', createdAt:Date.now() };
-      if(myUid()){ await Promise.all([saveGroup(), saveGroupsRegistry()]); } // else: shown from memory only, seeded for real once someone signed-in interacts
+      if(myUid()){ await Promise.all([saveGroup(true), saveGroupsRegistry()]); } // else: shown from memory only, seeded for real once someone signed-in interacts
     }else{
       groupId = FLAGSHIP_ID; group = data;
     }
@@ -1108,11 +1137,15 @@ async function authKnownOrTimeout(){
     }else{
       artInner = `<div class="cover-fallback"><span>${safeTitle}</span></div>`;
     }
+    const removeBtn = myUid()
+      ? `<button type="button" class="cover-remove" data-remove-id="${b.id}" title="Remove this book" aria-label="Remove ${safeTitle}">&times;</button>`
+      : '';
     return `<div class="cover-card" data-id="${b.id}" tabindex="0" role="button" aria-label="${safeTitle} by ${b.author}, rated ${avg===null?'not yet rated':avg.toFixed(1)+' out of 5'}">
       <div class="cover-art">
         <div class="cover-tab">N&deg;${pad2(b.id)}</div>
         ${artInner}
         ${badge}
+        ${removeBtn}
       </div>
       <div class="cover-caption"><span class="t">${b.title}</span><span class="a">${b.author}</span></div>
     </div>`;
@@ -1174,6 +1207,37 @@ async function authKnownOrTimeout(){
         if(fallback && fallback.classList.contains('cover-fallback')) fallback.style.display = 'flex';
       }, { once:true });
     });
+    el.querySelectorAll('.cover-remove').forEach(btn=>{
+      let confirmTimer;
+      const reset = ()=>{ btn.classList.remove('confirming'); btn.innerHTML = '&times;'; btn.setAttribute('aria-label', btn.dataset.resetLabel); };
+      btn.dataset.resetLabel = btn.getAttribute('aria-label');
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.removeId);
+        if(btn.classList.contains('confirming')){
+          clearTimeout(confirmTimer);
+          removeBook(id);
+          return;
+        }
+        btn.classList.add('confirming');
+        btn.textContent = 'remove?';
+        btn.setAttribute('aria-label', 'Click again within a few seconds to confirm removing this book');
+        confirmTimer = setTimeout(reset, 3000);
+      });
+      btn.addEventListener('keydown', (e)=>{ e.stopPropagation(); });
+    });
+  }
+
+  async function removeBook(id){
+    const idx = group.books.findIndex(b => b.id === id);
+    if(idx < 0) return;
+    const removed = group.books[idx];
+    group.books.splice(idx, 1);
+    delete group.ratings[id];
+    group.activity = group.activity.filter(a => a.bookId !== id);
+    const saved = await saveGroup(true);
+    if(saved) toast(`Removed "${removed.title}".`);
+    renderShelf(); renderLog(); renderPulse(); renderMembers(); renderActivity();
   }
 
   function renderMembers(){
@@ -1336,7 +1400,7 @@ async function authKnownOrTimeout(){
       if(group.activity.length>8) group.activity = group.activity.slice(-8);
       const key = coverKey(title, author);
       if(meta.thumbnail) coverCache[key] = { thumbnail: meta.thumbnail, year: meta.year };
-      const groupSaved = await saveGroup();
+      const groupSaved = await saveGroup(true);
       await saveCoverCache();
       btn.disabled = false; btn.textContent = 'Add to the book club';
       if(groupSaved){
@@ -1451,7 +1515,7 @@ async function authKnownOrTimeout(){
         await ensureMembership();
         const pos = u.votes.indexOf(myUid());
         if(pos>=0) u.votes.splice(pos,1); else u.votes.push(myUid());
-        await saveGroup();
+        await saveGroup(true);
         renderUpcoming();
       });
     });
@@ -1462,7 +1526,7 @@ async function authKnownOrTimeout(){
         const u = group.upcoming[idx];
         if(u.suggestedByUid !== myUid()) return; // guard — only the suggester can remove it
         group.upcoming.splice(idx,1);
-        const saved = await saveGroup();
+        const saved = await saveGroup(true);
         if(saved) toast('Suggestion removed.');
         renderUpcoming();
       });
@@ -1480,7 +1544,7 @@ async function authKnownOrTimeout(){
         if(group.activity.length>8) group.activity = group.activity.slice(-8);
         const key = coverKey(u.title, u.author);
         if(u.cover) coverCache[key] = { thumbnail:u.cover, year:u.year||null };
-        const [groupSaved, coversSaved] = await Promise.all([saveGroup(), saveCoverCache()]);
+        const [groupSaved, coversSaved] = await Promise.all([saveGroup(true), saveCoverCache()]);
         if(groupSaved){
           toast(`Added to the book club.`);
         } // else: storageSet already surfaced the specific error
@@ -1503,7 +1567,7 @@ async function authKnownOrTimeout(){
     const meta = await fetchBookData(title, author);
     await ensureMembership();
     group.upcoming.push({ title, author, suggestedByUid:myUid(), votes:[], cover:meta.thumbnail, year:meta.year });
-    await saveGroup();
+    await saveGroup(true);
     document.getElementById('suggTitle').value = '';
     document.getElementById('suggAuthor').value = '';
     btn.textContent = 'Put it forward'; btn.disabled = false;
