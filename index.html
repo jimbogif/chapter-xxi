@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter XXI — Book Club</title>
+<style>
+  :root{
+    --cream:#F2EEE2;
+    --card:#FBF9F3;
+    --ink:#1F2421;
+    --forest:#2C4A3B;
+    --forest-light:#4C7861;
+    --stamp:#A8332A;
+    --wood:#8B5E3C;
+    --line: rgba(31,36,33,0.14);
+    --serif: Georgia, 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--cream); color:var(--ink); font-family:var(--sans); line-height:1.5; }
+  a{ color:inherit; }
+  :focus-visible{ outline:2px solid var(--stamp); outline-offset:2px; }
+  button{ font:inherit; }
+  input, select{ font:inherit; }
+
+  /* ---------- top bar ---------- */
+  header.topbar{ position:sticky; top:0; z-index:60; background:var(--cream); border-bottom:1px solid var(--line); }
+  .topbar-inner{ max-width:1100px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .mark{ font-family:var(--mono); font-weight:700; font-size:13px; background:var(--forest); color:var(--cream); padding:3px 7px; border-radius:2px; letter-spacing:0.06em; }
+  .brand .name{ font-family:var(--serif); font-weight:700; font-size:19px; letter-spacing:0.01em; }
+  nav.tabs{ display:flex; gap:18px; font-family:var(--mono); font-size:12.5px; letter-spacing:0.05em; text-transform:uppercase; overflow-x:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; scrollbar-width:none; }
+  nav.tabs::-webkit-scrollbar{ display:none; }
+  nav.tabs a{ text-decoration:none; color:var(--ink); opacity:0.7; padding:8px 2px; border-bottom:2px solid transparent; white-space:nowrap; flex:0 0 auto; }
+  nav.tabs a:hover, nav.tabs a:active{ opacity:1; border-color:var(--stamp); }
+
+  .header-controls{ display:flex; align-items:center; gap:8px; }
+  .pill-btn{ background:var(--card); border:1px solid var(--line); border-radius:3px; padding:7px 10px; cursor:pointer; color:var(--ink); font-family:var(--mono); font-size:12px; display:flex; align-items:center; gap:7px; min-height:38px; }
+  .pill-btn:hover{ border-color:var(--forest); }
+  .pill-btn strong{ font-weight:700; }
+
+  .popover-wrap{ position:relative; }
+  .popover{ position:absolute; right:0; top:calc(100% + 8px); width:280px; background:var(--card); border:1px solid var(--line); border-radius:4px; box-shadow:0 10px 30px rgba(31,36,33,0.18); padding:14px; display:none; z-index:70; }
+  .popover.open{ display:block; }
+  .popover label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; opacity:0.65; margin-bottom:6px; }
+  .popover select, .popover input[type=text]{ width:100%; font-family:var(--sans); font-size:13.5px; padding:8px; border:1px solid var(--line); border-radius:3px; background:var(--cream); margin-bottom:8px; min-height:38px; }
+  .popover button.go{ width:100%; background:var(--forest); color:var(--cream); border:none; border-radius:3px; padding:9px; font-family:var(--mono); font-size:12px; letter-spacing:0.04em; cursor:pointer; min-height:38px; }
+  .popover button.go:hover{ background:var(--forest-light); }
+  .popover button.go:disabled{ opacity:0.5; cursor:default; }
+  .field-msg{ font-size:11px; margin:-3px 0 8px; font-family:var(--mono); min-height:14px; }
+  .field-msg.err{ color:var(--stamp); }
+  .field-msg.ok{ color:var(--forest); }
+  .divider-block{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .divider-block summary{ font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.65; cursor:pointer; padding:4px 0; list-style:none; }
+  .divider-block summary::-webkit-details-marker{ display:none; }
+  .divider-block summary:before{ content:'+ '; }
+  .divider-block[open] summary:before{ content:'– '; }
+  .inline-row{ display:flex; gap:6px; }
+  .inline-row input{ flex:1; margin-bottom:0; }
+  .inline-row button{ background:var(--forest); color:var(--cream); border:none; border-radius:3px; padding:0 12px; font-family:var(--mono); font-size:11px; cursor:pointer; }
+
+  .card-stamps{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); font-size:11.5px; opacity:0.75; }
+  .card-stamps .visit-no{ font-family:var(--mono); color:var(--stamp); font-weight:700; }
+  .card-number{ margin-top:8px; background:var(--cream); border:1px dashed var(--stamp); border-radius:3px; padding:8px 9px; font-family:var(--mono); font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card-number .code{ font-weight:700; letter-spacing:0.04em; color:var(--stamp); }
+  .card-number button{ background:none; border:1px solid var(--line); border-radius:3px; padding:4px 7px; font-family:var(--mono); font-size:10.5px; cursor:pointer; color:var(--ink); }
+
+  .group-list{ margin:0 0 10px; padding:0; list-style:none; }
+  .group-list li{ display:flex; align-items:center; justify-content:space-between; padding:8px 6px; border-radius:3px; font-size:13px; cursor:pointer; }
+  .group-list li:hover{ background:rgba(76,120,97,0.08); }
+  .group-list li.active{ background:rgba(44,74,59,0.1); font-weight:700; }
+  .group-list .tag{ font-family:var(--mono); font-size:9.5px; opacity:0.5; text-transform:uppercase; }
+
+  /* ---------- toast / banner ---------- */
+  .toast{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(12px); background:var(--ink); color:var(--cream); font-family:var(--mono); font-size:12.5px; padding:11px 18px; border-radius:5px; box-shadow:0 8px 24px rgba(0,0,0,0.3); z-index:200; opacity:0; pointer-events:none; transition:opacity 0.2s ease, transform 0.2s ease; max-width:90vw; text-align:center; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast.err{ background:var(--stamp); }
+
+  /* ---------- gate screen ---------- */
+  .gate{ max-width:640px; margin:0 auto; padding:70px 20px 60px; }
+  .gate .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--forest); }
+  .gate h1{ font-family:var(--serif); font-size:clamp(28px,5vw,42px); margin:8px 0 22px; line-height:1.1; }
+  .gate-options{ display:flex; flex-direction:column; gap:12px; }
+  .gate-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:18px; }
+  .gate-card h3{ font-family:var(--serif); font-size:17px; margin:0 0 4px; }
+  .gate-card p{ font-size:13px; opacity:0.65; margin:0 0 12px; }
+  .gate-card .row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .gate-card input{ flex:1 1 160px; font-family:var(--sans); font-size:14px; padding:10px; border:1px solid var(--line); border-radius:4px; background:var(--cream); min-height:42px; }
+  .gate-card button{ background:var(--forest); color:var(--cream); border:none; border-radius:4px; padding:0 16px; font-family:var(--mono); font-size:12.5px; cursor:pointer; min-height:42px; }
+  .gate-card button.secondary{ background:none; border:1px solid var(--forest); color:var(--forest); }
+  .gate-card .field-msg{ margin-top:8px; }
+
+  /* ---------- hero ---------- */
+  .hero{ max-width:1100px; margin:0 auto; padding:52px 20px 10px; }
+  .hero .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--forest); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .hero h1{ font-family:var(--serif); font-size:clamp(32px,5vw,52px); margin:8px 0 6px; line-height:1.05; }
+  .hero p.tagline{ font-family:var(--serif); font-style:italic; font-size:17px; opacity:0.75; margin:0 0 4px; max-width:520px; }
+
+  /* ---------- pulse strip ---------- */
+  .pulse{ max-width:1100px; margin:24px auto 0; padding:0 20px; display:flex; gap:0; flex-wrap:wrap; }
+  .pulse-item{ flex:1 1 150px; border-left:1px solid var(--line); padding:6px 18px; }
+  .pulse-item:first-child{ border-left:none; padding-left:0; }
+  .pulse-num{ font-family:var(--mono); font-size:26px; font-weight:700; color:var(--forest); }
+  .pulse-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin-top:2px;}
+  .pulse-nudge{ font-size:11.5px; color:var(--stamp); margin-top:3px; font-family:var(--mono); }
+
+  /* ---------- sections ---------- */
+  section{ max-width:1100px; margin:0 auto; padding:60px 20px 10px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+  .section-head h2{ font-family:var(--serif); font-size:26px; margin:0; }
+  .section-head .sub{ font-family:var(--mono); font-size:12px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.55; }
+
+  /* ---------- shelf (real covers, stacked bookcase) ---------- */
+  .bookcase{ display:flex; flex-direction:column; gap:0; }
+  .shelf-row-wrap{ margin-bottom:30px; }
+  .shelf-row{ display:flex; align-items:flex-end; justify-content:flex-start; gap:14px; padding:0 4px 14px; flex-wrap:nowrap; }
+  .plank{ height:14px; background:linear-gradient(180deg, var(--wood), #6e4a2d); border-radius:0 0 3px 3px; box-shadow:0 6px 10px rgba(31,36,33,0.25); margin:0 4px; }
+  .cover-card{ flex:1 1 0; min-width:0; cursor:pointer; position:relative; display:flex; flex-direction:column; gap:8px; }
+  .cover-art{ position:relative; width:100%; aspect-ratio:2/3; border-radius:3px; overflow:hidden; background:var(--forest-light); box-shadow:0 8px 14px rgba(31,36,33,0.22), 0 1px 0 rgba(255,255,255,0.15) inset; transition:transform 0.15s ease, box-shadow 0.15s ease; }
+  .cover-card:hover .cover-art, .cover-card:focus-visible .cover-art{ transform:translateY(-6px); box-shadow:0 14px 20px rgba(31,36,33,0.3), 0 1px 0 rgba(255,255,255,0.15) inset; }
+  .cover-art img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cover-fallback{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px; background:repeating-linear-gradient(135deg, var(--forest-light), var(--forest-light) 8px, var(--forest) 8px, var(--forest) 16px); }
+  .cover-fallback span{ font-family:var(--serif); font-weight:700; font-size:12px; color:var(--cream); line-height:1.25; }
+  .cover-fallback.loading{ background:linear-gradient(90deg, var(--line) 25%, rgba(0,0,0,0.04) 37%, var(--line) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; }
+  @keyframes shimmer{ 0%{background-position:100% 0;} 100%{background-position:0 0;} }
+  .cover-tab{ position:absolute; top:8px; left:0; background:var(--forest); color:var(--cream); font-family:var(--mono); font-size:9.5px; padding:2px 6px 2px 5px; border-radius:0 3px 3px 0; letter-spacing:0.03em; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
+  .cover-badge{ position:absolute; bottom:-9px; right:-6px; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream); font-family:var(--mono); font-weight:700; font-size:11px; color:var(--cream); box-shadow:0 3px 6px rgba(0,0,0,0.3); }
+  .cover-badge.unrated{ background:var(--card); color:var(--ink); opacity:0.7; border-style:dashed; }
+  .cover-caption{ font-size:11px; line-height:1.3; }
+  .cover-caption .t{ font-family:var(--serif); font-weight:700; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cover-caption .a{ opacity:0.55; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .shelf-legend{ display:flex; align-items:center; gap:16px; margin-top:8px; font-family:var(--mono); font-size:11px; opacity:0.6; flex-wrap:wrap; }
+  .legend-chip{ display:inline-flex; align-items:center; gap:6px; }
+  .legend-swatch{ width:12px; height:12px; border-radius:50%; display:inline-block; border:1px solid var(--line); }
+  .data-note{ font-family:var(--mono); font-size:10.5px; opacity:0.45; margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .data-note button{ background:none; border:1px solid var(--line); border-radius:3px; padding:3px 8px; font-family:var(--mono); font-size:10px; cursor:pointer; color:var(--ink); opacity:0.8; }
+  .data-note button:hover{ opacity:1; border-color:var(--forest); }
+  .cover-diag{ font-family:var(--mono); font-size:11px; background:var(--card); border:1px dashed var(--stamp); border-radius:4px; padding:10px 12px; margin-top:12px; display:none; }
+  .cover-diag.show{ display:block; }
+  .empty-shelf{ font-family:var(--serif); font-style:italic; opacity:0.6; padding:20px 4px; }
+
+  /* ---------- due next ---------- */
+  .upcoming-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
+  .up-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:14px; display:flex; gap:12px; }
+  .up-cover{ width:56px; height:82px; flex:0 0 auto; background:var(--forest); border-radius:2px; overflow:hidden; box-shadow:0 3px 6px rgba(0,0,0,0.2); }
+  .up-cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .up-title{ font-family:var(--serif); font-weight:700; font-size:15.5px; line-height:1.25; }
+  .up-author{ font-size:12.5px; opacity:0.65; margin-top:2px; }
+  .up-meta{ font-family:var(--mono); font-size:10.5px; opacity:0.55; margin-top:6px; text-transform:uppercase; letter-spacing:0.04em; }
+  .up-actions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .vote-btn, .read-btn{ font-family:var(--mono); font-size:11px; letter-spacing:0.03em; background:none; border:1px solid var(--forest); color:var(--forest); padding:6px 9px; border-radius:20px; cursor:pointer; min-height:32px; }
+  .vote-btn.voted{ background:var(--forest); color:var(--cream); }
+  .vote-btn:hover, .read-btn:hover{ background:var(--forest); color:var(--cream); }
+  .read-btn{ border-color:var(--stamp); color:var(--stamp); }
+  .read-btn:hover{ background:var(--stamp); color:var(--cream); }
+
+  .suggest-form{ margin-top:18px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px dashed var(--line); padding-top:18px; }
+  .suggest-form input{ font-family:var(--sans); font-size:13.5px; padding:9px 10px; border:1px solid var(--line); border-radius:4px; background:var(--card); flex:1 1 180px; min-height:42px; }
+  .suggest-form button{ background:var(--stamp); color:var(--cream); border:none; border-radius:4px; padding:9px 14px; font-family:var(--mono); font-size:12px; letter-spacing:0.03em; cursor:pointer; min-height:42px; }
+  .suggest-form button:hover{ opacity:0.9; }
+  .suggest-form button:disabled{ opacity:0.5; cursor:default; }
+
+  /* ---------- the log ---------- */
+  .log-list{ list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
+  .log-row{ display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center; padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .log-row:hover{ background:rgba(76,120,97,0.06); }
+  .log-num{ font-family:var(--mono); color:var(--forest); font-weight:700; font-size:13px; }
+  .log-title{ font-family:var(--serif); font-size:15.5px; }
+  .log-author{ font-size:12.5px; opacity:0.6; }
+  .log-selector{ font-family:var(--mono); font-size:11px; opacity:0.55; text-transform:uppercase; letter-spacing:0.03em; }
+  .log-score{ font-family:var(--mono); font-size:14px; font-weight:700; color:var(--stamp); text-align:right; min-width:52px; }
+  .log-score.none{ opacity:0.35; color:var(--ink); font-weight:400; }
+
+  /* ---------- footer / share ---------- */
+  footer{ max-width:1100px; margin:60px auto 0; padding:26px 20px 50px; border-top:1px solid var(--line); }
+  .share-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .share-row input{ flex:1 1 260px; font-family:var(--mono); font-size:12.5px; padding:10px; border:1px solid var(--line); border-radius:4px; background:var(--card); color:var(--ink); min-height:42px; }
+  .share-row button{ background:var(--forest); color:var(--cream); border:none; border-radius:4px; padding:10px 14px; font-family:var(--mono); font-size:12px; cursor:pointer; min-height:42px; }
+  footer .credit{ margin-top:14px; font-size:11.5px; opacity:0.5; font-family:var(--mono); }
+
+  /* ---------- modal ---------- */
+  .overlay{ position:fixed; inset:0; background:rgba(31,36,33,0.55); z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
+  .overlay.open{ display:flex; }
+  .modal-card{ background:var(--card); width:100%; max-width:460px; border-radius:6px; padding:26px 26px 22px; position:relative; box-shadow:0 20px 50px rgba(0,0,0,0.35); max-height:88vh; overflow-y:auto; }
+  .modal-card:before{ content:''; position:absolute; top:0; left:26px; width:34px; height:10px; background:var(--wood); border-radius:0 0 4px 4px; }
+  .modal-close{ position:absolute; top:14px; right:14px; background:none; border:none; cursor:pointer; font-family:var(--mono); font-size:18px; color:var(--ink); opacity:0.5; min-width:32px; min-height:32px; }
+  .modal-close:hover{ opacity:1; }
+  .modal-num{ font-family:var(--mono); font-size:11px; color:var(--forest); letter-spacing:0.04em; }
+  .modal-title{ font-family:var(--serif); font-size:23px; font-weight:700; margin:6px 0 2px; }
+  .modal-author{ font-size:14px; opacity:0.65; margin-bottom:4px; }
+  .modal-selector{ font-family:var(--mono); font-size:11.5px; opacity:0.55; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:16px; }
+  .modal-score{ display:flex; align-items:baseline; gap:8px; margin:14px 0; }
+  .modal-score .big{ font-family:var(--mono); font-size:34px; font-weight:700; color:var(--stamp); }
+  .modal-score .of5{ font-family:var(--mono); font-size:13px; opacity:0.5; }
+  .modal-score .count{ font-family:var(--mono); font-size:11.5px; opacity:0.5; margin-left:auto; }
+  .stamp-label{ font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin-bottom:8px; }
+  .stamp-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .stamp-btn{ width:44px; height:44px; border-radius:50%; border:2px solid var(--stamp); background:none; color:var(--stamp); font-family:var(--mono); font-weight:700; font-size:15px; cursor:pointer; }
+  .stamp-btn:hover{ background:rgba(168,51,42,0.1); }
+  .stamp-btn.active{ background:var(--stamp); color:var(--cream); }
+  .stamp-btn:disabled{ opacity:0.35; cursor:default; }
+  .members-list{ border-top:1px dashed var(--line); padding-top:12px; margin-top:4px; }
+  .members-list .row{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:12px; padding:3px 0; opacity:0.75; }
+  .empty-note{ font-size:13px; opacity:0.6; font-style:italic; }
+
+  @media (max-width:640px){
+    .topbar-inner{ padding:10px 14px; }
+    .brand .name{ font-size:17px; }
+    nav.tabs{ order:3; flex:0 0 100%; border-top:1px solid var(--line); margin-top:8px; padding-top:6px; }
+    .hero{ padding:34px 16px 6px; }
+    section{ padding:44px 16px 6px; }
+    .pulse{ padding:0 16px; }
+    .pulse-item{ flex:1 1 42%; padding:6px 12px; }
+
+    .popover{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; border-radius:14px 14px 0 0; max-height:80vh; overflow-y:auto; box-shadow:0 -10px 30px rgba(31,36,33,0.25); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); }
+    .pill-btn{ padding:9px 11px; }
+
+    .stamp-btn{ width:46px; height:46px; }
+    .up-card{ padding:12px; }
+    .upcoming-grid{ grid-template-columns:1fr; }
+    .suggest-form{ flex-direction:column; align-items:stretch; }
+    .suggest-form button{ padding:12px; }
+    .share-row{ flex-direction:column; align-items:stretch; }
+    .gate-card .row{ flex-direction:column; align-items:stretch; }
+
+    .modal-card{ max-width:100%; width:100%; border-radius:14px 14px 0 0; position:fixed; left:0; right:0; bottom:0; margin:0; max-height:86vh; }
+    .overlay{ padding:0; align-items:flex-end; }
+
+    .log-row{ grid-template-columns:32px 1fr auto; gap:10px; padding:12px 2px; }
+    .log-title{ font-size:14.5px; }
+  }
+
+  @media (max-width:400px){
+    .hero h1{ font-size:30px; }
+    .pulse-item{ flex:1 1 100%; border-left:none; border-top:1px solid var(--line); padding:10px 0; }
+    .pulse-item:first-child{ border-top:none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="mark">N&deg; XXI</span>
+      <span class="name">Chapter XXI</span>
+    </div>
+    <nav class="tabs">
+      <a href="#shelf">The Shelf</a>
+      <a href="#due-next">Due Next</a>
+      <a href="#the-log">The Log</a>
+    </nav>
+    <div class="header-controls">
+      <div class="popover-wrap">
+        <button class="pill-btn" id="groupBtn" type="button">league: <strong id="groupNameLabel">—</strong></button>
+        <div class="popover" id="groupPop">
+          <label>Your groups</label>
+          <ul class="group-list" id="groupList"></ul>
+          <div class="divider-block" id="inviteBlock" style="display:none;">
+            <div style="font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.65; margin-bottom:8px;">Invite to this league</div>
+            <div class="inline-row" style="margin-bottom:6px;">
+              <input type="text" id="inviteLink" readonly>
+              <button id="copyInviteLink" type="button">copy</button>
+            </div>
+            <div class="inline-row">
+              <input type="text" id="inviteCode" readonly>
+              <button id="copyInviteCode" type="button">copy code</button>
+            </div>
+          </div>
+          <details class="divider-block">
+            <summary>Start a new league</summary>
+            <div style="margin-top:8px;">
+              <input type="text" id="newGroupName" placeholder="League name">
+              <button class="go" id="newGroupBtn" type="button">Create league</button>
+              <div class="field-msg" id="newGroupMsg"></div>
+            </div>
+          </details>
+          <details class="divider-block">
+            <summary>Join with a code</summary>
+            <div style="margin-top:8px;">
+              <input type="text" id="joinGroupCode" placeholder="e.g. BOOK-4F82">
+              <button class="go" id="joinGroupBtn" type="button">Join league</button>
+              <div class="field-msg" id="joinGroupMsg"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="popover-wrap">
+        <button class="pill-btn" id="profileBtn" type="button">reading as: <strong id="profileName">— pick a name —</strong></button>
+        <div class="popover" id="profilePop">
+          <label for="memberSelect">Known members</label>
+          <select id="memberSelect"></select>
+          <label for="memberNew">Or, new to the club</label>
+          <input type="text" id="memberNew" placeholder="Type your name">
+          <button class="go" id="profileGo" type="button">Take my seat</button>
+          <div class="field-msg" id="profileMsg"></div>
+          <div class="card-stamps" id="cardStamps"></div>
+          <details class="divider-block" id="reloginDetails">
+            <summary>Already have a card number?</summary>
+            <div class="inline-row" style="margin-top:8px;">
+              <input type="text" id="reloginInput" placeholder="e.g. XXI-4F82" maxlength="10">
+              <button id="reloginBtn" type="button">Log in</button>
+            </div>
+            <div class="field-msg" id="reloginMsg"></div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="gate" id="gateScreen" style="display:none;">
+  <div class="eyebrow">No password, no account, just a name</div>
+  <h1>Which shelf are you here for?</h1>
+  <div class="gate-options">
+    <div class="gate-card">
+      <h3>Chapter XXI</h3>
+      <p>The original — twenty-one books deep and counting. Jump straight in.</p>
+      <button id="enterFlagship" type="button">Enter Chapter XXI</button>
+    </div>
+    <div class="gate-card">
+      <h3>Start your own league</h3>
+      <p>A blank shelf for your crew. You'll get a code to invite them.</p>
+      <div class="row">
+        <input type="text" id="gateNewGroupName" placeholder="League name">
+        <button id="gateNewGroupBtn" type="button">Create</button>
+      </div>
+      <div class="field-msg" id="gateNewGroupMsg"></div>
+    </div>
+    <div class="gate-card">
+      <h3>Join with a code</h3>
+      <p>Got an invite from a mate? Punch in their league code.</p>
+      <div class="row">
+        <input type="text" id="gateJoinCode" placeholder="e.g. BOOK-4F82">
+        <button class="secondary" id="gateJoinBtn" type="button">Join</button>
+      </div>
+      <div class="field-msg" id="gateJoinMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appMain" style="display:none;">
+  <div class="hero">
+    <div class="eyebrow" id="heroEyebrow">No password, no account, just a name</div>
+    <h1 id="heroTitle">Twenty-one books.<br>And counting.</h1>
+    <p class="tagline" id="heroTagline">A running shelf of everything we've argued about over dinner &mdash; who picked it, what we thought, and what's due next.</p>
+  </div>
+
+  <div class="pulse" id="pulseStrip"></div>
+
+  <section id="shelf">
+    <div class="section-head">
+      <h2>The Shelf</h2>
+      <div class="sub">tap a cover to read &amp; stamp a rating</div>
+    </div>
+    <div class="bookcase" id="bookcase"></div>
+    <div class="shelf-legend">
+      <span class="legend-chip"><span class="legend-swatch" style="background:var(--card); border-style:dashed;"></span> not yet stamped</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#9c9483"></span> low</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#4C7861"></span> mid</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#2C4A3B"></span> loved it</span>
+    </div>
+    <div class="data-note">
+      <span>Covers &amp; publish years are pulled live from Google Books and Open Library &mdash; Goodreads retired its public API in 2020 and issues no new developer access.</span>
+      <button id="retryCoversBtn" type="button">reload cover art</button>
+    </div>
+    <div class="cover-diag" id="coverDiag"></div>
+  </section>
+
+  <section id="due-next">
+    <div class="section-head">
+      <h2>Due Next</h2>
+      <div class="sub">what's on the table for the next meet</div>
+    </div>
+    <div class="upcoming-grid" id="upcomingGrid"></div>
+    <div class="suggest-form">
+      <input type="text" id="suggTitle" placeholder="Book title">
+      <input type="text" id="suggAuthor" placeholder="Author">
+      <button id="suggBtn" type="button">Put it forward</button>
+    </div>
+  </section>
+
+  <section id="the-log">
+    <div class="section-head">
+      <h2>The Log</h2>
+      <div class="sub">every book, in order, since day one</div>
+    </div>
+    <ul class="log-list" id="logList"></ul>
+  </section>
+
+  <footer>
+    <div class="section-head" style="margin-bottom:12px;">
+      <h2 style="font-size:20px;">Pass it on</h2>
+    </div>
+    <div class="share-row">
+      <input type="text" id="shareLink" readonly>
+      <button id="shareBtn" type="button">Copy link</button>
+    </div>
+    <div class="credit">Chapter XXI &middot; a shelf, not a login</div>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card" id="modalCard"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+
+  // ================= constants =================
+  const FLAGSHIP_ID = 'chapter-xxi';
+  const FLAGSHIP_SEED = [
+    {title:"The Seven Moons of Maali Almeida", author:"Shehan Karunatilaka", selector:"Paul"},
+    {title:"Small Things Like These", author:"Claire Keegan", selector:"Donal"},
+    {title:"Mayflies", author:"Andrew O'Hagan", selector:"Bradley"},
+    {title:"Siddhartha", author:"Hermann Hesse", selector:"Dan"},
+    {title:"The Nickel Boys", author:"Colson Whitehead", selector:"Jackson"},
+    {title:"Shuggie Bain", author:"Douglas Stuart", selector:"Rory"},
+    {title:"The Hound of the Baskervilles", author:"Arthur Conan Doyle", selector:"James P."},
+    {title:"Breath", author:"Tim Winton", selector:"Charlie N."},
+    {title:"2034", author:"Elliot Ackerman & Jim Stavridis", selector:"Ben"},
+    {title:"The Silent Patient", author:"Alex Michaelides", selector:"Alex"},
+    {title:"Cat's Cradle", author:"Kurt Vonnegut", selector:"Jimmy G."},
+    {title:"Flowers for Algernon", author:"Daniel Keyes", selector:"Jack L."},
+    {title:"The Gambler", author:"Fyodor Dostoevsky", selector:"Dan"},
+    {title:"Butter", author:"Asako Yuzuki", selector:"Charlie N."},
+    {title:"1984", author:"George Orwell", selector:"James P."},
+    {title:"The Dry", author:"Jane Harper", selector:"Charlie L."},
+    {title:"Go Tell It on the Mountain", author:"James Baldwin", selector:"Donal"},
+    {title:"Mornings in Jenin", author:"Susan Abulhawa", selector:"Alex"},
+    {title:"Fahrenheit 451", author:"Ray Bradbury", selector:"Jimmy"},
+    {title:"Animal Farm", author:"George Orwell", selector:"Brad"},
+    {title:"Brave New World", author:"Aldous Huxley", selector:"Dan H."}
+  ].map((b,i)=>({ id:i+1, ...b, addedAt:Date.now() }));
+
+  // ================= state =================
+  let profile = { name:null, code:null, visits:[], activeGroup:null, joinedGroups:[] };
+  let sessions = {};           // { code: name }  — global identity registry
+  let groupsRegistry = {};     // { groupId: {name, createdAt} }
+  let group = null;            // active group's data
+  let groupId = null;
+  let coverCache = {};         // { "title|author": {thumbnail, year} }
+
+  // ================= toast =================
+  let toastTimer;
+  function toast(msg, isErr){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 3200);
+  }
+
+  // ================= storage helpers (defensive) =================
+  async function storageGet(key, shared){
+    try{
+      const res = await window.storage.get(key, shared);
+      return res && res.value ? JSON.parse(res.value) : null;
+    }catch(e){ return null; }
+  }
+  async function storageSet(key, value, shared){
+    try{
+      const res = await window.storage.set(key, JSON.stringify(value), shared);
+      if(!res) throw new Error('storage.set returned empty result');
+      return true;
+    }catch(e){
+      console.error('storage write failed for', key, e);
+      toast('Could not save — your connection may have dropped. Try again.', true);
+      return false;
+    }
+  }
+
+  async function loadSessions(){ sessions = (await storageGet('sessions', true)) || {}; }
+  async function saveSessions(){ return storageSet('sessions', sessions, true); }
+
+  async function loadGroupsRegistry(){ groupsRegistry = (await storageGet('groups-registry', true)) || {}; }
+  async function saveGroupsRegistry(){ return storageSet('groups-registry', groupsRegistry, true); }
+
+  async function loadGroup(id){
+    const data = await storageGet('group-' + id, true);
+    return data;
+  }
+  async function saveGroup(){ return storageSet('group-' + groupId, group, true); }
+
+  async function loadProfile(){
+    profile = (await storageGet('library-card', false)) || { name:null, code:null, visits:[], activeGroup:null, joinedGroups:[] };
+    if(!profile.visits) profile.visits = [];
+    if(!profile.joinedGroups) profile.joinedGroups = [];
+    const today = new Date().toISOString().slice(0,10);
+    if(profile.visits[profile.visits.length-1] !== today){
+      profile.visits.push(today);
+      if(profile.visits.length > 12) profile.visits = profile.visits.slice(-12);
+    }
+    await saveProfile();
+  }
+  async function saveProfile(){ return storageSet('library-card', profile, false); }
+
+  async function loadCoverCache(){ coverCache = (await storageGet('covers-v2', true)) || {}; }
+  async function saveCoverCache(){ return storageSet('covers-v2', coverCache, true); }
+
+  // ================= utils =================
+  function hash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h<<5)-h+str.charCodeAt(i); h|=0; } return Math.abs(h); }
+  function lerp(a,b,t){ return Math.round(a+(b-a)*t); }
+  function pad2(n){ return n<10 ? '0'+n : ''+n; }
+  function coverKey(title, author){ return (title||'').trim().toLowerCase() + '|' + (author||'').trim().toLowerCase(); }
+  function genCode(prefix){
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let s = ''; for(let i=0;i<4;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return (prefix||'XXI') + '-' + s;
+  }
+  function ratingColor(avg){
+    const low=[156,148,131], mid=[76,120,97], high=[44,74,59];
+    if(avg<=2.5){ const t=avg/2.5; return `rgb(${lerp(low[0],mid[0],t)},${lerp(low[1],mid[1],t)},${lerp(low[2],mid[2],t)})`; }
+    const t=(avg-2.5)/2.5; return `rgb(${lerp(mid[0],high[0],t)},${lerp(mid[1],high[1],t)},${lerp(mid[2],high[2],t)})`;
+  }
+  function bookAvg(id){
+    const r = group.ratings[id];
+    if(!r) return null;
+    const vals = Object.values(r);
+    if(!vals.length) return null;
+    return vals.reduce((a,b)=>a+b,0)/vals.length;
+  }
+
+  // ================= sessions (library card numbers) =================
+  async function findOrCreateCode(name){
+    for(const [code, n] of Object.entries(sessions)){
+      if(n.toLowerCase() === name.toLowerCase()) return code;
+    }
+    let code; do{ code = genCode('XXI'); }while(sessions[code]);
+    sessions[code] = name;
+    await saveSessions();
+    return code;
+  }
+
+  // ================= groups =================
+  function currentUrl(){ return window.location.origin + window.location.pathname; }
+
+  async function createGroup(name){
+    let id; do{ id = genCode('BOOK'); }while(groupsRegistry[id]);
+    const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1 };
+    groupId = id; group = newGroup;
+    groupsRegistry[id] = { name, createdAt:Date.now() };
+    await Promise.all([saveGroup(), saveGroupsRegistry()]);
+    if(!profile.joinedGroups.includes(id)) profile.joinedGroups.push(id);
+    profile.activeGroup = id;
+    await saveProfile();
+    return id;
+  }
+
+  async function joinGroupByCode(code){
+    code = code.trim().toUpperCase();
+    if(!code) return { ok:false, msg:'Enter a code.' };
+    const data = await loadGroup(code);
+    if(!data){
+      return { ok:false, msg:"Can't find a league with that code." };
+    }
+    groupId = code; group = data;
+    if(!groupsRegistry[code]) groupsRegistry[code] = { name:data.name, createdAt:Date.now() };
+    if(!profile.joinedGroups.includes(code)) profile.joinedGroups.push(code);
+    profile.activeGroup = code;
+    await saveProfile();
+    return { ok:true };
+  }
+
+  async function enterFlagship(){
+    let data = await loadGroup(FLAGSHIP_ID);
+    if(!data){
+      data = { name:'Chapter XXI', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1 };
+      groupId = FLAGSHIP_ID; group = data;
+      groupsRegistry[FLAGSHIP_ID] = { name:'Chapter XXI', createdAt:Date.now() };
+      await Promise.all([saveGroup(), saveGroupsRegistry()]);
+    }else{
+      groupId = FLAGSHIP_ID; group = data;
+    }
+    if(!profile.joinedGroups.includes(FLAGSHIP_ID)) profile.joinedGroups.push(FLAGSHIP_ID);
+    profile.activeGroup = FLAGSHIP_ID;
+    await saveProfile();
+  }
+
+  async function switchToGroup(id){
+    const data = await loadGroup(id);
+    if(!data){ toast('That league could not be loaded.', true); return; }
+    groupId = id; group = data; profile.activeGroup = id;
+    await saveProfile();
+    await activateGroup();
+    document.getElementById('groupPop').classList.remove('open');
+  }
+
+  // ================= rendering: header controls =================
+  function renderProfileWidget(){
+    document.getElementById('profileName').textContent = profile.name || '— pick a name —';
+    const sel = document.getElementById('memberSelect');
+    const known = Array.from(new Set((group ? group.books.map(b=>b.selector) : []))).sort();
+    sel.innerHTML = '<option value="">— choose —</option>' + known.map(n=>`<option value="${n}">${n}</option>`).join('');
+    const stampsEl = document.getElementById('cardStamps');
+    if(profile.visits.length){
+      let html = `<span class="visit-no">Visit No. ${profile.visits.length}</span><br>` + profile.visits.slice(-6).join(' &middot; ');
+      if(profile.code){
+        html += `<div class="card-number"><span>Card N&deg; <span class="code">${profile.code}</span></span><button id="copyCodeBtn" type="button">copy</button></div>`;
+      }
+      stampsEl.innerHTML = html;
+      const copyBtn = document.getElementById('copyCodeBtn');
+      if(copyBtn) copyBtn.addEventListener('click', ()=>copyText(profile.code, 'Card number copied'));
+    }else{
+      stampsEl.innerHTML = '';
+    }
+  }
+
+  function renderGroupWidget(){
+    document.getElementById('groupNameLabel').textContent = group ? group.name : '—';
+    const list = document.getElementById('groupList');
+    if(!profile.joinedGroups.length){
+      list.innerHTML = `<li class="empty-note">No leagues yet</li>`;
+    }else{
+      list.innerHTML = profile.joinedGroups.map(id=>{
+        const meta = groupsRegistry[id] || { name:id };
+        const active = id === groupId;
+        const tag = id === FLAGSHIP_ID ? 'flagship' : 'league';
+        return `<li class="${active?'active':''}" data-id="${id}"><span>${meta.name}</span><span class="tag">${tag}</span></li>`;
+      }).join('');
+      list.querySelectorAll('li[data-id]').forEach(li=>{
+        li.addEventListener('click', ()=>{ if(li.dataset.id !== groupId) switchToGroup(li.dataset.id); });
+      });
+    }
+    const inviteBlock = document.getElementById('inviteBlock');
+    if(group){
+      inviteBlock.style.display = 'block';
+      document.getElementById('inviteLink').value = currentUrl() + '?g=' + groupId;
+      document.getElementById('inviteCode').value = groupId;
+    }else{
+      inviteBlock.style.display = 'none';
+    }
+  }
+
+  function copyText(text, msg){
+    try{ navigator.clipboard.writeText(text); toast(msg || 'Copied'); }
+    catch(e){ toast('Could not copy — select and copy manually.', true); }
+  }
+
+  document.getElementById('profileBtn').addEventListener('click', ()=>{
+    document.getElementById('groupPop').classList.remove('open');
+    document.getElementById('profilePop').classList.toggle('open');
+  });
+  document.getElementById('groupBtn').addEventListener('click', ()=>{
+    document.getElementById('profilePop').classList.remove('open');
+    document.getElementById('groupPop').classList.toggle('open');
+  });
+  document.addEventListener('click', (e)=>{
+    document.querySelectorAll('.popover.open').forEach(pop=>{
+      const trigger = pop.id === 'profilePop' ? document.getElementById('profileBtn') : document.getElementById('groupBtn');
+      if(!pop.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)){
+        pop.classList.remove('open');
+      }
+    });
+  });
+
+  document.getElementById('profileGo').addEventListener('click', async ()=>{
+    const msg = document.getElementById('profileMsg');
+    const sel = document.getElementById('memberSelect').value;
+    const typed = document.getElementById('memberNew').value.trim();
+    const name = typed || sel;
+    if(!name){ msg.textContent = 'Pick a name from the list, or type a new one.'; msg.className='field-msg err'; return; }
+    msg.textContent = ''; msg.className = 'field-msg';
+    const goBtn = document.getElementById('profileGo');
+    goBtn.disabled = true; goBtn.textContent = 'Seating you…';
+    try{
+      profile.name = name;
+      renderProfileWidget(); // optimistic — show it immediately even if storage is slow
+      profile.code = await findOrCreateCode(name);
+      await saveProfile();
+      renderProfileWidget();
+      renderAll();
+      toast(`Welcome, ${name}.`);
+      document.getElementById('profilePop').classList.remove('open');
+    }catch(e){
+      console.error(e);
+      msg.textContent = 'Something went wrong seating you — try again.'; msg.className = 'field-msg err';
+    }finally{
+      goBtn.disabled = false; goBtn.textContent = 'Take my seat';
+    }
+  });
+
+  document.getElementById('reloginBtn').addEventListener('click', async ()=>{
+    const msg = document.getElementById('reloginMsg');
+    const raw = document.getElementById('reloginInput').value.trim().toUpperCase();
+    if(!raw) return;
+    msg.textContent = 'Checking…'; msg.className = 'field-msg';
+    await loadSessions();
+    const name = sessions[raw];
+    if(name){
+      profile.name = name; profile.code = raw;
+      await saveProfile();
+      renderProfileWidget(); renderAll();
+      msg.textContent = `Welcome back, ${name}.`; msg.className = 'field-msg ok';
+      setTimeout(()=>{ document.getElementById('profilePop').classList.remove('open'); }, 700);
+    }else{
+      msg.textContent = "Can't find that card number."; msg.className = 'field-msg err';
+    }
+  });
+
+  async function handleCreateGroup(nameInput, msgEl, btn){
+    const name = nameInput.value.trim();
+    if(!name){ msgEl.textContent = 'Give your league a name.'; msgEl.className='field-msg err'; return; }
+    btn.disabled = true; const oldText = btn.textContent; btn.textContent = 'Creating…';
+    try{
+      const id = await createGroup(name);
+      toast(`${name} is live — invite code ${id}`);
+      nameInput.value = '';
+      msgEl.textContent = ''; msgEl.className = 'field-msg';
+      document.getElementById('groupPop').classList.remove('open');
+      await activateGroup();
+    }catch(e){
+      console.error(e);
+      msgEl.textContent = 'Could not create the league — try again.'; msgEl.className = 'field-msg err';
+    }finally{
+      btn.disabled = false; btn.textContent = oldText;
+    }
+  }
+  async function handleJoinGroup(codeInput, msgEl, btn){
+    btn.disabled = true; const oldText = btn.textContent; btn.textContent = 'Joining…';
+    try{
+      const result = await joinGroupByCode(codeInput.value);
+      if(result.ok){
+        toast(`Joined ${group.name}.`);
+        codeInput.value = '';
+        msgEl.textContent = ''; msgEl.className = 'field-msg';
+        document.getElementById('groupPop').classList.remove('open');
+        await activateGroup();
+      }else{
+        msgEl.textContent = result.msg; msgEl.className = 'field-msg err';
+      }
+    }catch(e){
+      console.error(e);
+      msgEl.textContent = 'Something went wrong — try again.'; msgEl.className = 'field-msg err';
+    }finally{
+      btn.disabled = false; btn.textContent = oldText;
+    }
+  }
+
+  document.getElementById('newGroupBtn').addEventListener('click', ()=>{
+    handleCreateGroup(document.getElementById('newGroupName'), document.getElementById('newGroupMsg'), document.getElementById('newGroupBtn'));
+  });
+  document.getElementById('joinGroupBtn').addEventListener('click', ()=>{
+    handleJoinGroup(document.getElementById('joinGroupCode'), document.getElementById('joinGroupMsg'), document.getElementById('joinGroupBtn'));
+  });
+  document.getElementById('copyInviteLink').addEventListener('click', ()=>copyText(document.getElementById('inviteLink').value, 'Invite link copied'));
+  document.getElementById('copyInviteCode').addEventListener('click', ()=>copyText(document.getElementById('inviteCode').value, 'Invite code copied'));
+
+  // gate screen actions
+  document.getElementById('enterFlagship').addEventListener('click', async ()=>{
+    const btn = document.getElementById('enterFlagship');
+    btn.disabled = true; btn.textContent = 'Loading…';
+    await enterFlagship();
+    await activateGroup();
+    btn.disabled = false; btn.textContent = 'Enter Chapter XXI';
+  });
+  document.getElementById('gateNewGroupBtn').addEventListener('click', ()=>{
+    handleCreateGroup(document.getElementById('gateNewGroupName'), document.getElementById('gateNewGroupMsg'), document.getElementById('gateNewGroupBtn'));
+  });
+  document.getElementById('gateJoinBtn').addEventListener('click', ()=>{
+    handleJoinGroup(document.getElementById('gateJoinCode'), document.getElementById('gateJoinMsg'), document.getElementById('gateJoinBtn'));
+  });
+
+  // ================= pulse =================
+  function renderPulse(){
+    const total = group.books.length;
+    const allAvgs = group.books.map(b=>bookAvg(b.id)).filter(v=>v!==null);
+    const groupAvg = allAvgs.length ? (allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length).toFixed(1) : '—';
+    const unrated = profile.name ? group.books.filter(b=>{
+      const r = group.ratings[b.id]; return !(r && r[profile.name]!==undefined);
+    }).length : total;
+    const el = document.getElementById('pulseStrip');
+    el.innerHTML = `
+      <div class="pulse-item"><div class="pulse-num">${total}</div><div class="pulse-label">books read</div></div>
+      <div class="pulse-item"><div class="pulse-num">${groupAvg}</div><div class="pulse-label">league average</div></div>
+      <div class="pulse-item">
+        <div class="pulse-num">${unrated}</div>
+        <div class="pulse-label">${profile.name ? 'still awaiting your stamp' : 'pick a name to see yours'}</div>
+        ${profile.name && unrated>0 ? '<div class="pulse-nudge">worth a visit to the shelf &darr;</div>' : ''}
+      </div>
+      <div class="pulse-item"><div class="pulse-num">${group.activity.length}</div><div class="pulse-label">recent stamps logged</div></div>
+    `;
+  }
+
+  // ================= shelf: real covers, multi-provider =================
+  async function fetchFromGoogleBooks(title, author){
+    const q = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent('intitle:'+title+' inauthor:'+author)}&maxResults=1`;
+    const res = await fetch(q);
+    if(!res.ok) throw new Error('google books http ' + res.status);
+    const data = await res.json();
+    const item = data.items && data.items[0];
+    if(!item) return null;
+    const info = item.volumeInfo || {};
+    const links = info.imageLinks || {};
+    const thumb = links.thumbnail || links.smallThumbnail || null;
+    if(!thumb) return null;
+    return { thumbnail: thumb.replace('http://','https://'), year: info.publishedDate ? info.publishedDate.slice(0,4) : null };
+  }
+  async function fetchFromOpenLibrary(title, author){
+    const q = `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=1`;
+    const res = await fetch(q);
+    if(!res.ok) throw new Error('open library http ' + res.status);
+    const data = await res.json();
+    const doc = data.docs && data.docs[0];
+    if(!doc || !doc.cover_i) return null;
+    return { thumbnail: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`, year: doc.first_publish_year || null };
+  }
+  async function fetchBookData(title, author){
+    const attempts = [fetchFromGoogleBooks, fetchFromOpenLibrary];
+    for(const attempt of attempts){
+      try{
+        const result = await attempt(title, author);
+        if(result && result.thumbnail) return { thumbnail: result.thumbnail, year: result.year, ok:true };
+      }catch(e){ /* try next provider */ }
+    }
+    return { thumbnail:null, year:null, ok:false };
+  }
+
+  let coverFetchFailures = 0, coverFetchAttempts = 0;
+
+  async function ensureCovers(force){
+    const targets = force ? group.books.slice() : group.books.filter(b => !coverCache[coverKey(b.title,b.author)]);
+    if(!targets.length) return false;
+    coverFetchAttempts = 0; coverFetchFailures = 0;
+    const results = await Promise.all(targets.map(async b=>{
+      const key = coverKey(b.title, b.author);
+      const data = await fetchBookData(b.title, b.author);
+      coverFetchAttempts++;
+      if(!data.ok) coverFetchFailures++;
+      return { key, data };
+    }));
+    results.forEach(r=>{ coverCache[r.key] = { thumbnail:r.data.thumbnail, year:r.data.year }; });
+    await saveCoverCache();
+    updateCoverDiagnostic();
+    return true;
+  }
+
+  function updateCoverDiagnostic(){
+    const el = document.getElementById('coverDiag');
+    if(coverFetchAttempts > 0 && coverFetchFailures === coverFetchAttempts){
+      el.className = 'cover-diag show';
+      el.textContent = `Couldn't load any cover art just now (${coverFetchFailures}/${coverFetchAttempts} lookups failed). Your network or browser may be blocking outside image requests — try "reload cover art", or the shelf still works fine without photos.`;
+    }else{
+      el.className = 'cover-diag';
+      el.textContent = '';
+    }
+  }
+
+  function booksPerRow(){
+    const w = window.innerWidth;
+    if(w < 420) return 3;
+    if(w < 640) return 4;
+    if(w < 900) return 5;
+    if(w < 1100) return 6;
+    return 7;
+  }
+
+  function coverCardHtml(b){
+    const avg = bookAvg(b.id);
+    const meta = coverCache[coverKey(b.title, b.author)];
+    const badgeStyle = avg===null ? '' : `background:${ratingColor(avg)};`;
+    const badge = `<div class="cover-badge ${avg===null?'unrated':''}" style="${badgeStyle}">${avg===null?'—':avg.toFixed(1)}</div>`;
+    const safeTitle = b.title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    let artInner;
+    if(meta === undefined){
+      artInner = `<div class="cover-fallback loading"></div>`;
+    }else if(meta.thumbnail){
+      artInner = `<img class="cover-img" src="${meta.thumbnail}" alt="Cover of ${safeTitle}" loading="lazy">
+        <div class="cover-fallback" style="display:none;"><span>${safeTitle}</span></div>`;
+    }else{
+      artInner = `<div class="cover-fallback"><span>${safeTitle}</span></div>`;
+    }
+    return `<div class="cover-card" data-id="${b.id}" tabindex="0" role="button" aria-label="${safeTitle} by ${b.author}, rated ${avg===null?'not yet rated':avg.toFixed(1)+' out of 5'}">
+      <div class="cover-art">
+        <div class="cover-tab">N&deg;${pad2(b.id)}</div>
+        ${artInner}
+        ${badge}
+      </div>
+      <div class="cover-caption"><span class="t">${b.title}</span><span class="a">${b.author}</span></div>
+    </div>`;
+  }
+
+  function renderShelf(){
+    const el = document.getElementById('bookcase');
+    if(!group.books.length){
+      el.innerHTML = `<div class="empty-shelf">Nothing on this shelf yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
+      return;
+    }
+    const perRow = booksPerRow();
+    const rows = [];
+    for(let i=0;i<group.books.length;i+=perRow){ rows.push(group.books.slice(i, i+perRow)); }
+    el.innerHTML = rows.map(row=>`
+      <div class="shelf-row-wrap">
+        <div class="shelf-row">${row.map(coverCardHtml).join('')}</div>
+        <div class="plank" aria-hidden="true"></div>
+      </div>`).join('');
+    el.querySelectorAll('.cover-card').forEach(s=>{
+      s.addEventListener('click', ()=>openBookModal(parseInt(s.dataset.id)));
+      s.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openBookModal(parseInt(s.dataset.id)); }});
+    });
+    el.querySelectorAll('.cover-img').forEach(img=>{
+      img.addEventListener('error', ()=>{
+        img.style.display = 'none';
+        const fallback = img.nextElementSibling;
+        if(fallback && fallback.classList.contains('cover-fallback')) fallback.style.display = 'flex';
+      }, { once:true });
+    });
+  }
+  let resizeTimer, lastPerRow;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{
+      const newPerRow = booksPerRow();
+      if(group && newPerRow !== lastPerRow){ lastPerRow = newPerRow; renderShelf(); }
+    }, 180);
+  });
+
+  document.getElementById('retryCoversBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('retryCoversBtn');
+    btn.disabled = true; btn.textContent = 'reloading…';
+    await ensureCovers(true);
+    renderShelf();
+    btn.disabled = false; btn.textContent = 'reload cover art';
+  });
+
+  // ================= book modal =================
+  function openBookModal(id){
+    const book = group.books.find(b=>b.id===id);
+    if(!book) return;
+    renderModal(book);
+    document.getElementById('overlay').classList.add('open');
+  }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+  document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+  function renderModal(book){
+    const ratings = group.ratings[book.id] || {};
+    const entries = Object.entries(ratings);
+    const avg = entries.length ? (entries.reduce((a,[,v])=>a+v,0)/entries.length) : null;
+    const myScore = profile.name ? ratings[profile.name] : undefined;
+    const stampButtons = [0,1,2,3,4,5].map(n=>
+      `<button class="stamp-btn ${myScore===n?'active':''}" data-n="${n}" ${profile.name?'':'disabled'}>${n}</button>`
+    ).join('');
+    const membersHtml = entries.length
+      ? `<div class="members-list">${entries.map(([n,v])=>`<div class="row"><span>${n}</span><span>${v} / 5</span></div>`).join('')}</div>`
+      : `<div class="members-list"><div class="empty-note">No stamps yet &mdash; be the first to rate it.</div></div>`;
+
+    document.getElementById('modalCard').innerHTML = `
+      <button class="modal-close" id="modalCloseBtn" type="button">&times;</button>
+      <div class="modal-num">N&deg;${pad2(book.id)} ON THE SHELF</div>
+      <div class="modal-title">${book.title}</div>
+      <div class="modal-author">${book.author}</div>
+      <div class="modal-selector">Picked by ${book.selector}</div>
+      <div class="modal-score">
+        <span class="big">${avg===null?'—':avg.toFixed(1)}</span>
+        <span class="of5">/ 5</span>
+        <span class="count">${entries.length} stamp${entries.length===1?'':'s'}</span>
+      </div>
+      <div class="stamp-label">${profile.name? 'stamp your rating' : 'pick a name up top to stamp a rating'}</div>
+      <div class="stamp-row">${stampButtons}</div>
+      ${membersHtml}
+    `;
+    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+    document.querySelectorAll('.stamp-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!profile.name) return;
+        const n = parseInt(btn.dataset.n);
+        if(!group.ratings[book.id]) group.ratings[book.id] = {};
+        group.ratings[book.id][profile.name] = n;
+        group.activity.push({member:profile.name, bookId:book.id, rating:n, ts:Date.now()});
+        if(group.activity.length>8) group.activity = group.activity.slice(-8);
+        const saved = await saveGroup();
+        if(saved) toast('Stamped.');
+        renderModal(book); renderShelf(); renderPulse(); renderLog();
+      });
+    });
+  }
+
+  // ================= the log =================
+  function renderLog(){
+    const el = document.getElementById('logList');
+    if(!group.books.length){
+      el.innerHTML = `<li class="empty-note" style="padding:16px 4px; list-style:none;">Nothing logged yet.</li>`;
+      return;
+    }
+    el.innerHTML = group.books.map(b=>{
+      const avg = bookAvg(b.id);
+      return `<li class="log-row" data-id="${b.id}" tabindex="0" role="button" aria-label="Open ${b.title}">
+        <span class="log-num">${pad2(b.id)}</span>
+        <span><span class="log-title">${b.title}</span> &middot; <span class="log-author">${b.author}</span><br>
+        <span class="log-selector">selected by ${b.selector}</span></span>
+        <span class="log-score ${avg===null?'none':''}">${avg===null?'unrated':avg.toFixed(1)}</span>
+      </li>`;
+    }).join('');
+    el.querySelectorAll('.log-row').forEach(row=>{
+      row.addEventListener('click', ()=>openBookModal(parseInt(row.dataset.id)));
+      row.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openBookModal(parseInt(row.dataset.id)); }});
+    });
+  }
+
+  // ================= due next =================
+  function renderUpcoming(){
+    const el = document.getElementById('upcomingGrid');
+    if(!group.upcoming.length){
+      el.innerHTML = `<div class="empty-note">Nothing on the table yet &mdash; put a book forward below.</div>`;
+      return;
+    }
+    el.innerHTML = group.upcoming.map((u,idx)=>{
+      const voted = profile.name && u.votes.includes(profile.name);
+      return `<div class="up-card">
+        <div class="up-cover">${u.cover?`<img src="${u.cover}" alt="Cover of ${u.title}">`:''}</div>
+        <div>
+          <div class="up-title">${u.title}</div>
+          <div class="up-author">${u.author}</div>
+          <div class="up-meta">suggested by ${u.suggestedBy}</div>
+          <div class="up-actions">
+            <button class="vote-btn ${voted?'voted':''}" data-idx="${idx}" data-action="vote" ${profile.name?'':'disabled'}>
+              ${u.votes.length} vote${u.votes.length===1?'':'s'} ${voted?'&middot; yours':''}
+            </button>
+            <button class="read-btn" data-idx="${idx}" data-action="read" ${profile.name?'':'disabled'}>mark as read</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-action="vote"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!profile.name) return;
+        const idx = parseInt(btn.dataset.idx);
+        const u = group.upcoming[idx];
+        const pos = u.votes.indexOf(profile.name);
+        if(pos>=0) u.votes.splice(pos,1); else u.votes.push(profile.name);
+        await saveGroup();
+        renderUpcoming();
+      });
+    });
+    el.querySelectorAll('[data-action="read"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!profile.name) return;
+        const idx = parseInt(btn.dataset.idx);
+        const u = group.upcoming[idx];
+        const newBook = { id: group.nextBookId++, title:u.title, author:u.author, selector:u.suggestedBy, addedAt:Date.now() };
+        group.books.push(newBook);
+        group.upcoming.splice(idx,1);
+        const key = coverKey(u.title, u.author);
+        if(u.cover) coverCache[key] = { thumbnail:u.cover, year:u.year||null };
+        await Promise.all([saveGroup(), saveCoverCache()]);
+        toast(`Moved to the shelf.`);
+        renderUpcoming(); renderShelf(); renderLog(); renderPulse(); renderProfileWidget();
+      });
+    });
+  }
+
+  document.getElementById('suggBtn').addEventListener('click', async ()=>{
+    const title = document.getElementById('suggTitle').value.trim();
+    const author = document.getElementById('suggAuthor').value.trim();
+    if(!title || !author) return;
+    if(!profile.name){ document.getElementById('profilePop').classList.add('open'); return; }
+    const btn = document.getElementById('suggBtn');
+    btn.textContent = 'Adding…'; btn.disabled = true;
+    const meta = await fetchBookData(title, author);
+    group.upcoming.push({ title, author, suggestedBy:profile.name, votes:[], cover:meta.thumbnail, year:meta.year });
+    await saveGroup();
+    document.getElementById('suggTitle').value = '';
+    document.getElementById('suggAuthor').value = '';
+    btn.textContent = 'Put it forward'; btn.disabled = false;
+    renderUpcoming();
+  });
+
+  // ================= share =================
+  function renderShare(){ document.getElementById('shareLink').value = window.location.href; }
+  document.getElementById('shareBtn').addEventListener('click', ()=>copyText(document.getElementById('shareLink').value, 'Link copied'));
+
+  // ================= full render =================
+  function renderAll(){
+    renderProfileWidget();
+    renderGroupWidget();
+    renderPulse();
+    lastPerRow = booksPerRow();
+    renderShelf();
+    renderUpcoming();
+    renderLog();
+    renderShare();
+  }
+
+  async function activateGroup(){
+    document.getElementById('gateScreen').style.display = 'none';
+    document.getElementById('appMain').style.display = 'block';
+    renderAll();
+    await ensureCovers(false);
+    renderShelf();
+  }
+
+  // ================= boot =================
+  async function boot(){
+    try{
+      await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry(), loadCoverCache()]);
+
+      const params = new URLSearchParams(window.location.search);
+      const gParam = params.get('g');
+      if(gParam){
+        const res = await joinGroupByCode(gParam);
+        if(!res.ok){ toast(res.msg, true); }
+      }else if(profile.activeGroup){
+        const data = await loadGroup(profile.activeGroup);
+        if(data){ groupId = profile.activeGroup; group = data; }
+      }
+
+      if(profile.name && !profile.code){
+        profile.code = await findOrCreateCode(profile.name);
+        await saveProfile();
+      }
+
+      if(group){
+        await activateGroup();
+      }else{
+        document.getElementById('gateScreen').style.display = 'block';
+        document.getElementById('appMain').style.display = 'none';
+      }
+    }catch(e){
+      console.error('boot failed', e);
+      toast('Something went wrong loading the club. Try refreshing.', true);
+    }
+  }
+  boot();
+
+})();
+</script>
+</body>
+</html>
