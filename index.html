@@ -350,6 +350,12 @@
   </div>
 </div>
 
+<div class="gate" id="loadingIndicator">
+  <div class="eyebrow">Adley St Book Club</div>
+  <h1 id="loadingText">Loading your shelf&hellip;</h1>
+  <p style="font-family:var(--mono); font-size:12.5px; opacity:0.6;" id="loadingSub">If this doesn't change in a few seconds, something failed to load — check the browser console (right-click → Inspect → Console) for a red error message.</p>
+</div>
+
 <div class="gate" id="gateScreen" style="display:none;">
   <div class="eyebrow">No password, no account, just a name</div>
   <h1>Which shelf are you here for?</h1>
@@ -448,10 +454,23 @@
 
 <div class="toast" id="toast"></div>
 
+<script>
+  window.__adleyModuleRan = false;
+  setTimeout(function(){
+    if(!window.__adleyModuleRan){
+      var sub = document.getElementById('loadingSub');
+      var title = document.getElementById('loadingText');
+      if(title) title.textContent = "Something didn't load.";
+      if(sub) sub.innerHTML = 'The page script failed to start. Open the browser console (right-click → Inspect → Console) and copy the red error text — that tells us exactly what broke.';
+    }
+  }, 6000);
+</script>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+window.__adleyModuleRan = true;
 
 const firebaseConfig = {
   apiKey: "AIzaSyDqeqWJnoFdK3PyXWhPENeBFY2aZTji4gs",
@@ -1217,6 +1236,7 @@ async function authReadyOrTimeout(){
   }
 
   async function activateGroup(){
+    document.getElementById('loadingIndicator').style.display = 'none';
     document.getElementById('gateScreen').style.display = 'none';
     document.getElementById('appMain').style.display = 'block';
     const crest = document.getElementById('heroCrest');
@@ -1235,6 +1255,7 @@ async function authReadyOrTimeout(){
   async function boot(){
     try{
       if(firebaseInitError){
+        document.getElementById('loadingIndicator').style.display = 'none';
         toast('Could not connect to the club\'s database. Try refreshing.', true);
         document.getElementById('gateScreen').style.display = 'block';
         return;
@@ -1264,11 +1285,14 @@ async function authReadyOrTimeout(){
       if(group){
         await activateGroup();
       }else{
+        document.getElementById('loadingIndicator').style.display = 'none';
         document.getElementById('gateScreen').style.display = 'block';
         document.getElementById('appMain').style.display = 'none';
       }
     }catch(e){
       console.error('boot failed', e);
+      document.getElementById('loadingIndicator').style.display = 'none';
+      document.getElementById('gateScreen').style.display = 'block';
       toast('Something went wrong loading the club. Try refreshing.', true);
     }
   }
