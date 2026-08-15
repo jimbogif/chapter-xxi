@@ -338,7 +338,7 @@
   </div>
   <div class="banner-manage" id="bannerManage" style="display:none;">
     <button class="banner-logout" id="logoutBtn" type="button">Log out on this device</button>
-    <details id="reloginDetails">
+    <details>
       <summary>Log in with a different card</summary>
       <div class="inline-row" style="margin-top:8px;">
         <input type="text" id="reloginInput" placeholder="e.g. XXI-4F82" maxlength="10">
@@ -567,6 +567,25 @@ try{
       return data && data.value ? JSON.parse(data.value) : null;
     }catch(e){ console.error('storageGet failed for', key, e); return null; }
   }
+  function describeSaveError(e){
+    const code = e && e.code;
+    switch(code){
+      case 'permission-denied':
+        return 'Could not save — Firestore rules are blocking writes. Check the Rules tab in your Firebase console.';
+      case 'unavailable':
+      case 'network-request-failed':
+        return 'Could not save — no connection to the server. Check your internet and try again.';
+      case 'resource-exhausted':
+        return 'Could not save — Firestore quota was hit for today. Try again later.';
+      case 'invalid-argument':
+        return 'Could not save — the data was too large or in an unexpected shape.';
+      case 'unauthenticated':
+        return 'Could not save — the request wasn\'t authenticated. This shouldn\'t happen since this app has no login step; please report this.';
+      default:
+        return `Could not save${code ? ` (${code})` : ''} — check your connection and try again.`;
+    }
+  }
+
   async function storageSet(key, value, shared){
     if(!shared) return localSet(key, value);
     try{
@@ -574,7 +593,7 @@ try{
       return true;
     }catch(e){
       console.error('storage write failed for', key, e);
-      toast('Could not save — check your connection and try again.', true);
+      toast(describeSaveError(e), true);
       return false;
     }
   }
@@ -604,8 +623,8 @@ try{
   }
   async function saveProfile(){ return storageSet('library-card', profile, false); }
 
-  async function loadCoverCache(){ coverCache = (await storageGet('covers-v2', true)) || {}; }
-  async function saveCoverCache(){ return storageSet('covers-v2', coverCache, true); }
+  async function loadCoverCache(){ coverCache = (await storageGet('covers-' + groupId, true)) || {}; }
+  async function saveCoverCache(){ return storageSet('covers-' + groupId, coverCache, true); }
 
   // ================= utils =================
   function hash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h<<5)-h+str.charCodeAt(i); h|=0; } return Math.abs(h); }
@@ -635,12 +654,12 @@ try{
 
   async function findOrCreateCode(name){
     for(const [code, n] of Object.entries(sessions)){
-      if(n.toLowerCase() === name.toLowerCase()) return code;
+      if(n.toLowerCase() === name.toLowerCase()) return { code, saved:true };
     }
     let code; do{ code = genCode('XXI'); }while(sessions[code]);
     sessions[code] = name;
-    await saveSessions();
-    return code;
+    const saved = await saveSessions();
+    return { code, saved };
   }
 
   // ================= groups =================
@@ -775,11 +794,14 @@ try{
     msg.textContent = ''; msg.className = 'field-msg';
     profile.name = name;
     renderProfileWidget(); // optimistic — show it immediately even if storage is slow
-    profile.code = await findOrCreateCode(name);
+    const result = await findOrCreateCode(name);
+    profile.code = result.code;
     await saveProfile();
     renderProfileWidget();
     renderAll();
-    toast(`Welcome, ${name}.`);
+    if(result.saved){
+      toast(`Welcome, ${name}.`);
+    } // else: storageSet already showed a specific error toast — don't overwrite it with a false "Welcome"
     return true;
   }
 
@@ -1242,6 +1264,7 @@ try{
       crest.style.display = 'none';
     }
     renderAll();
+    await loadCoverCache();
     await ensureCovers(false);
     renderShelf();
   }
@@ -1256,7 +1279,7 @@ try{
         return;
       }
 
-      await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry(), loadCoverCache()]);
+      await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry()]);
 
       const params = new URLSearchParams(window.location.search);
       const gParam = params.get('g');
@@ -1269,7 +1292,8 @@ try{
       }
 
       if(profile.name && !profile.code){
-        profile.code = await findOrCreateCode(profile.name);
+        const result = await findOrCreateCode(profile.name);
+        profile.code = result.code;
         await saveProfile();
       }
 
