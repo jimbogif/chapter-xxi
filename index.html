@@ -133,7 +133,7 @@
   .pulse-nudge:hover{ text-decoration:underline; }
 
   /* ---------- activity feed ---------- */
-  .activity-panel{ max-width:1100px; margin:22px auto 0; padding:0 20px; }
+  .activity-panel{ max-width:1100px; margin:0 auto; padding:44px 20px 10px; }
   .activity-head{ font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; opacity:0.5; margin-bottom:8px; }
   .activity-feed{ display:flex; flex-direction:column; gap:2px; }
   .activity-row{ font-size:13px; padding:6px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
@@ -288,7 +288,7 @@
     section{ padding:44px 16px 6px; }
     .pulse{ padding:0 16px; }
     .pulse-item{ flex:1 1 42%; padding:6px 12px; }
-    .activity-panel{ padding:0 16px; }
+    .activity-panel{ padding:34px 16px 10px; }
     .shelf-toolbar{ flex-direction:column; align-items:stretch; }
     .add-book-btn{ width:100%; }
     .shelf-controls{ flex-direction:column; }
@@ -446,11 +446,6 @@
 
   <div class="pulse" id="pulseStrip"></div>
 
-  <div class="activity-panel">
-    <div class="activity-head">Recent activity</div>
-    <div class="activity-feed" id="activityFeed"></div>
-  </div>
-
   <section id="shelf">
     <div class="section-head">
       <h2>The Book Club</h2>
@@ -511,6 +506,11 @@
     </div>
     <ul class="log-list" id="logList"></ul>
   </section>
+
+  <div class="activity-panel" id="activity">
+    <div class="activity-head">Recent activity</div>
+    <div class="activity-feed" id="activityFeed"></div>
+  </div>
 
   <footer>
     <div class="section-head" style="margin-bottom:12px;">
