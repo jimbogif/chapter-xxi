@@ -279,7 +279,7 @@
       <span class="name">Adley St Book Club</span>
     </a>
     <nav class="tabs">
-      <a href="#shelf">The Shelf</a>
+      <a href="#shelf">The Book Club</a>
       <a href="#due-next">Due Next</a>
       <a href="#the-log">The Log</a>
     </nav>
@@ -341,13 +341,13 @@
 
 <div class="gate" id="loadingIndicator">
   <div class="eyebrow">Adley St Book Club</div>
-  <h1 id="loadingText">Loading your shelf&hellip;</h1>
+  <h1 id="loadingText">Loading your book club&hellip;</h1>
   <p style="font-family:var(--mono); font-size:12.5px; opacity:0.6;" id="loadingSub">If this doesn't change in a few seconds, something failed to load — check the browser console (right-click → Inspect → Console) for a red error message.</p>
 </div>
 
 <div class="gate" id="gateScreen" style="display:none;">
   <div class="eyebrow">Sign in with Google to join in</div>
-  <h1>Which shelf are you here for?</h1>
+  <h1>Which book club are you here for?</h1>
   <div class="gate-returning" id="gateReturning">
     <span>Already got a book club going?</span>
     <button class="banner-google" id="gateSignInBtn" type="button">Sign in with Google</button>
@@ -361,7 +361,7 @@
     </div>
     <div class="gate-card">
       <h3>Start your own book club</h3>
-      <p>A blank shelf for your crew. You'll get a code to invite them.</p>
+      <p>A blank book club for your crew. You'll get a code to invite them.</p>
       <div class="row">
         <input type="text" id="gateNewGroupName" placeholder="Book club name">
         <button id="gateNewGroupBtn" type="button">Create</button>
@@ -384,15 +384,15 @@
   <div class="hero">
     <img id="heroCrest" class="hero-crest" alt="Adley St Book Club" style="display:none;">
     <div class="eyebrow" id="heroEyebrow">Sign in with Google to join in</div>
-    <h1 id="heroTitle">Twenty-one books.<br>And counting.</h1>
-    <p class="tagline" id="heroTagline">A running shelf of everything we've argued about over dinner &mdash; who picked it, what we thought, and what's due next.</p>
+    <h1 id="heroTitle">Welcome to Adley St Book Club</h1>
+    <p class="tagline" id="heroTagline">Twenty-one books read so far — who picked them, what we thought, and what's due next.</p>
   </div>
 
   <div class="pulse" id="pulseStrip"></div>
 
   <section id="shelf">
     <div class="section-head">
-      <h2>The Shelf</h2>
+      <h2>The Book Club</h2>
       <div class="sub">tap a cover to read &amp; stamp a rating</div>
     </div>
     <div class="bookcase" id="bookcase"></div>
@@ -412,7 +412,7 @@
   <section id="due-next">
     <div class="section-head">
       <h2>Due Next</h2>
-      <div class="sub">suggest a book &middot; 2 votes moves it to the shelf</div>
+      <div class="sub">suggest a book &middot; 2 votes moves it to the book club</div>
     </div>
     <div class="upcoming-grid" id="upcomingGrid"></div>
     <div class="suggest-form">
@@ -438,7 +438,7 @@
       <input type="text" id="shareLink" readonly>
       <button id="shareBtn" type="button">Copy link</button>
     </div>
-    <div class="credit">Adley St Book Club &middot; a shelf, not a login</div>
+    <div class="credit">Adley St Book Club &middot; Google sign-in, no password needed</div>
   </footer>
 </div>
 
@@ -923,7 +923,8 @@ async function authKnownOrTimeout(){
   // ================= pulse =================
   function renderPulse(){
     const total = group.books.length;
-    document.getElementById('heroTitle').innerHTML = `${total} book${total===1?'':'s'}.<br>And counting.`;
+    document.getElementById('heroTitle').textContent = `Welcome to ${group.name}`;
+    document.getElementById('heroTagline').textContent = `${total} book${total===1?'':'s'} read so far — who picked them, what we thought, and what's due next.`;
     const allAvgs = group.books.map(b=>bookAvg(b.id)).filter(v=>v!==null);
     const groupAvg = allAvgs.length ? (allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length).toFixed(1) : '—';
     const unrated = myUid() ? group.books.filter(b=>{
@@ -936,7 +937,7 @@ async function authKnownOrTimeout(){
       <div class="pulse-item">
         <div class="pulse-num">${unrated}</div>
         <div class="pulse-label">${myUid() ? 'still awaiting your stamp' : 'sign in to see yours'}</div>
-        ${myUid() && unrated>0 ? '<div class="pulse-nudge">worth a visit to the shelf &darr;</div>' : ''}
+        ${myUid() && unrated>0 ? '<div class="pulse-nudge">worth a visit to the book club &darr;</div>' : ''}
       </div>
       <div class="pulse-item"><div class="pulse-num">${group.activity.length}</div><div class="pulse-label">recent stamps logged</div></div>
     `;
@@ -999,7 +1000,7 @@ async function authKnownOrTimeout(){
     const el = document.getElementById('coverDiag');
     if(coverFetchAttempts > 0 && coverFetchFailures === coverFetchAttempts){
       el.className = 'cover-diag show';
-      el.textContent = `Couldn't load any cover art just now (${coverFetchFailures}/${coverFetchAttempts} lookups failed). Your network or browser may be blocking outside image requests — try "reload cover art", or the shelf still works fine without photos.`;
+      el.textContent = `Couldn't load any cover art just now (${coverFetchFailures}/${coverFetchAttempts} lookups failed). Your network or browser may be blocking outside image requests — try "reload cover art", or the book club still works fine without photos.`;
     }else{
       el.className = 'cover-diag';
       el.textContent = '';
@@ -1043,7 +1044,7 @@ async function authKnownOrTimeout(){
   function renderShelf(){
     const el = document.getElementById('bookcase');
     if(!group.books.length){
-      el.innerHTML = `<div class="empty-shelf">Nothing on this shelf yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
+      el.innerHTML = `<div class="empty-shelf">Nothing in the book club yet. Suggest a book below in Due Next, then mark it read once you've finished it.</div>`;
       return;
     }
     const perRow = booksPerRow();
@@ -1107,7 +1108,7 @@ async function authKnownOrTimeout(){
 
     document.getElementById('modalCard').innerHTML = `
       <button class="modal-close" id="modalCloseBtn" type="button">&times;</button>
-      <div class="modal-num">N&deg;${pad2(book.id)} ON THE SHELF</div>
+      <div class="modal-num">N&deg;${pad2(book.id)} IN THE BOOK CLUB</div>
       <div class="modal-title">${book.title}</div>
       <div class="modal-author">${book.author}</div>
       <div class="modal-selector">Picked by ${book.selector}</div>
@@ -1182,7 +1183,7 @@ async function authKnownOrTimeout(){
             <button class="vote-btn ${voted?'voted':''}" data-idx="${idx}" data-action="vote" ${myUid()?'':'disabled'}>
               ${u.votes.length} vote${u.votes.length===1?'':'s'} ${voted?'&middot; yours':''}
             </button>
-            <button class="read-btn" data-idx="${idx}" data-action="read" ${(myUid() && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the shelf`}">${readLabel}</button>
+            <button class="read-btn" data-idx="${idx}" data-action="read" ${(myUid() && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the book club`}">${readLabel}</button>
           </div>
         </div>
       </div>`;
@@ -1212,7 +1213,7 @@ async function authKnownOrTimeout(){
         if(u.cover) coverCache[key] = { thumbnail:u.cover, year:u.year||null };
         const [groupSaved, coversSaved] = await Promise.all([saveGroup(), saveCoverCache()]);
         if(groupSaved){
-          toast(`Moved to the shelf.`);
+          toast(`Added to the book club.`);
         } // else: storageSet already surfaced the specific error
         renderUpcoming(); renderShelf(); renderLog(); renderPulse(); renderProfileWidget();
       });
