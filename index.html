@@ -54,8 +54,8 @@
   .banner-sep{ opacity:0.35; }
   .banner-card-chip{ font-family:var(--mono); font-size:12px; background:var(--cream); border:1px dashed var(--stamp); border-radius:3px; padding:4px 8px; }
   .banner-card-chip strong{ color:var(--stamp); }
-  .banner-card-chip button, .banner-row .field-msg + button, #bannerCopyInvite, #copyCardBtn{ background:none; border:1px solid var(--line); border-radius:3px; padding:3px 7px; font-family:var(--mono); font-size:10.5px; cursor:pointer; color:var(--ink); margin-left:4px; }
-  .banner-card-chip button:hover, #bannerCopyInvite:hover, #copyCardBtn:hover{ border-color:var(--forest); }
+  .banner-card-chip button, .banner-row .field-msg + button, #bannerCopyInvite{ background:none; border:1px solid var(--line); border-radius:3px; padding:3px 7px; font-family:var(--mono); font-size:10.5px; cursor:pointer; color:var(--ink); margin-left:4px; }
+  .banner-card-chip button:hover, #bannerCopyInvite:hover{ border-color:var(--forest); }
   .banner-manage-btn{ background:none; border:1px solid var(--line); border-radius:20px; padding:4px 10px; font-family:var(--mono); font-size:11.5px; cursor:pointer; color:var(--ink); }
   .banner-manage-btn:hover{ border-color:var(--forest); }
   .banner-manage{ max-width:1100px; margin:0 auto; padding:0 16px 14px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:12.5px; }
@@ -105,6 +105,7 @@
   .gate{ max-width:640px; margin:0 auto; padding:70px 20px 60px; }
   .gate .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--forest); }
   .gate h1{ font-family:var(--serif); font-size:clamp(28px,5vw,42px); margin:8px 0 22px; line-height:1.1; }
+  .gate-returning{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 26px; padding-bottom:22px; border-bottom:1px dashed var(--line); font-size:13.5px; }
   .gate-options{ display:flex; flex-direction:column; gap:12px; }
   .gate-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:18px; }
   .gate-card h3{ font-family:var(--serif); font-size:17px; margin:0 0 4px; }
@@ -323,29 +324,18 @@
 
 <div class="profile-banner" id="profileBanner" style="display:none;">
   <div class="banner-row" id="bannerLoggedOut">
-    <span class="banner-prompt">Who's reading?</span>
-    <input type="text" id="memberNew" placeholder="Type your name">
-    <button class="banner-go" id="profileGo" type="button">Take my seat</button>
+    <span class="banner-prompt">Sign in to join in</span>
+    <button class="banner-google" id="googleSignInBtn" type="button">Sign in with Google</button>
     <span class="field-msg" id="profileMsg"></span>
   </div>
   <div class="banner-row" id="bannerLoggedIn" style="display:none;">
     <span>Reading as <strong id="profileName"></strong></span>
-    <span class="banner-sep">&middot;</span>
-    <span class="banner-card-chip">card <strong id="cardCodeInline"></strong> <button id="copyCardBtn" type="button">copy</button></span>
     <button class="banner-manage-btn" id="manageToggle" type="button">Manage &#9662;</button>
     <span class="banner-sep">&middot;</span>
     <span>invite others: <strong id="bannerInviteCode"></strong> <button id="bannerCopyInvite" type="button">copy code</button></span>
   </div>
   <div class="banner-manage" id="bannerManage" style="display:none;">
-    <button class="banner-logout" id="logoutBtn" type="button">Log out on this device</button>
-    <details>
-      <summary>Log in with a different card</summary>
-      <div class="inline-row" style="margin-top:8px;">
-        <input type="text" id="reloginInput" placeholder="e.g. XXI-4F82" maxlength="10">
-        <button id="reloginBtn" type="button">Log in</button>
-      </div>
-      <div class="field-msg" id="reloginMsg"></div>
-    </details>
+    <button class="banner-logout" id="signOutBtn" type="button">Sign out</button>
   </div>
 </div>
 
@@ -356,8 +346,13 @@
 </div>
 
 <div class="gate" id="gateScreen" style="display:none;">
-  <div class="eyebrow">No password, no account, just a name</div>
+  <div class="eyebrow">Sign in with Google to join in</div>
   <h1>Which shelf are you here for?</h1>
+  <div class="gate-returning" id="gateReturning">
+    <span>Already got a book club going?</span>
+    <button class="banner-google" id="gateSignInBtn" type="button">Sign in with Google</button>
+    <span class="field-msg" id="gateSignInMsg"></span>
+  </div>
   <div class="gate-options">
     <div class="gate-card">
       <h3>Adley St Book Club</h3>
@@ -388,7 +383,7 @@
 <div id="appMain" style="display:none;">
   <div class="hero">
     <img id="heroCrest" class="hero-crest" alt="Adley St Book Club" style="display:none;">
-    <div class="eyebrow" id="heroEyebrow">No password, no account, just a name</div>
+    <div class="eyebrow" id="heroEyebrow">Sign in with Google to join in</div>
     <h1 id="heroTitle">Twenty-one books.<br>And counting.</h1>
     <p class="tagline" id="heroTagline">A running shelf of everything we've argued about over dinner &mdash; who picked it, what we thought, and what's due next.</p>
   </div>
@@ -467,6 +462,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 window.__adleyModuleRan = true;
 
@@ -480,14 +476,29 @@ const firebaseConfig = {
   measurementId: "G-24WMB3VSKF"
 };
 
-let fbApp, db;
+let fbApp, db, auth;
 let firebaseInitError = null;
 try{
   fbApp = initializeApp(firebaseConfig);
   db = getFirestore(fbApp);
+  auth = getAuth(fbApp);
 }catch(e){
   console.error('Firebase init failed', e);
   firebaseInitError = e;
+}
+
+// Resolves once Firebase has told us whether someone is already signed in
+// (or that nobody is) — every reload of the page waits on this.
+let authKnownResolve;
+const authKnown = new Promise(res => { authKnownResolve = res; });
+if(auth){
+  onAuthStateChanged(auth, (user) => {
+    authKnownResolve(user);
+    if(typeof window.__adleyOnAuthChange === 'function') window.__adleyOnAuthChange(user);
+  });
+}
+async function authKnownOrTimeout(){
+  return Promise.race([ authKnown, new Promise(r => setTimeout(r, 8000)) ]);
 }
 
 (function(){
@@ -520,8 +531,7 @@ try{
   ].map((b,i)=>({ id:i+1, ...b, addedAt:Date.now() }));
 
   // ================= state =================
-  let profile = { name:null, code:null, visits:[], activeGroup:null, joinedGroups:[] };
-  let sessions = {};           // { code: name }  — global identity registry
+  let profile = { activeGroup:null, joinedGroups:[] }; // personal data pegged to the Google account (uid)
   let groupsRegistry = {};     // { groupId: {name, createdAt} }
   let group = null;            // active group's data
   let groupId = null;
@@ -538,34 +548,12 @@ try{
   }
 
   // ================= storage helpers =================
-  // Personal (per-device) data lives in localStorage — this is a real hosted site now,
-  // not a Claude artifact preview, so ordinary browser storage is the right tool.
+  // Personal data is pegged to the signed-in Google account — /users/{uid}/private/{key} —
+  // so it follows the person across devices, not just this browser.
   // Shared (club) data lives in Firestore under /shared/{key}.
-  const LOCAL_PREFIX = 'adley:';
-  function localGet(key){
-    try{
-      const raw = localStorage.getItem(LOCAL_PREFIX + key);
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ console.error('local read failed for', key, e); return null; }
-  }
-  function localSet(key, value){
-    try{
-      localStorage.setItem(LOCAL_PREFIX + key, JSON.stringify(value));
-      return true;
-    }catch(e){
-      console.error('local write failed for', key, e);
-      toast('Could not save on this device — your browser may be blocking storage.', true);
-      return false;
-    }
-  }
-  async function storageGet(key, shared){
-    if(!shared) return localGet(key);
-    try{
-      const snap = await getDoc(doc(db, 'shared', key));
-      if(!snap.exists()) return null;
-      const data = snap.data();
-      return data && data.value ? JSON.parse(data.value) : null;
-    }catch(e){ console.error('storageGet failed for', key, e); return null; }
+  function personalDocRef(key){
+    if(!auth.currentUser) throw new Error('not signed in');
+    return doc(db, 'users', auth.currentUser.uid, 'private', key);
   }
   function describeSaveError(e){
     const code = e && e.code;
@@ -580,16 +568,24 @@ try{
       case 'invalid-argument':
         return 'Could not save — the data was too large or in an unexpected shape.';
       case 'unauthenticated':
-        return 'Could not save — the request wasn\'t authenticated. This shouldn\'t happen since this app has no login step; please report this.';
+        return 'Could not save — you got signed out. Sign in again.';
       default:
         return `Could not save${code ? ` (${code})` : ''} — check your connection and try again.`;
     }
   }
-
-  async function storageSet(key, value, shared){
-    if(!shared) return localSet(key, value);
+  async function storageGet(key, shared){
     try{
-      await setDoc(doc(db, 'shared', key), { value: JSON.stringify(value), updatedAt: Date.now() });
+      const ref = shared ? doc(db, 'shared', key) : personalDocRef(key);
+      const snap = await getDoc(ref);
+      if(!snap.exists()) return null;
+      const data = snap.data();
+      return data && data.value ? JSON.parse(data.value) : null;
+    }catch(e){ console.error('storageGet failed for', key, e); return null; }
+  }
+  async function storageSet(key, value, shared){
+    try{
+      const ref = shared ? doc(db, 'shared', key) : personalDocRef(key);
+      await setDoc(ref, { value: JSON.stringify(value), updatedAt: Date.now() });
       return true;
     }catch(e){
       console.error('storage write failed for', key, e);
@@ -598,9 +594,6 @@ try{
     }
   }
 
-  async function loadSessions(){ sessions = (await storageGet('sessions', true)) || {}; }
-  async function saveSessions(){ return storageSet('sessions', sessions, true); }
-
   async function loadGroupsRegistry(){ groupsRegistry = (await storageGet('groups-registry', true)) || {}; }
   async function saveGroupsRegistry(){ return storageSet('groups-registry', groupsRegistry, true); }
 
@@ -608,20 +601,47 @@ try{
     const data = await storageGet('group-' + id, true);
     return data;
   }
-  async function saveGroup(){ return storageSet('group-' + groupId, group, true); }
+  // Two people can rate/vote/join at the same moment. A blind overwrite of the whole
+  // document would let whoever saves last erase the other's change. Before writing,
+  // pull the latest server copy and merge the fields that see concurrent writes —
+  // ratings and members are merged key-by-key (mine wins only for my own key);
+  // activity is a union, deduped, capped. `books`/`upcoming` structural edits (adding
+  // a book, approving a suggestion) are rarer and still last-write-wins.
+  async function saveGroup(){
+    try{
+      const remote = await storageGet('group-' + groupId, true);
+      if(remote){
+        group.ratings = mergeRatings(remote.ratings, group.ratings);
+        group.members = Object.assign({}, remote.members, group.members);
+        group.activity = mergeActivity(remote.activity, group.activity);
+      }
+    }catch(e){ console.error('pre-save merge fetch failed, saving local state as-is', e); }
+    return storageSet('group-' + groupId, group, true);
+  }
+  function mergeRatings(remote, local){
+    const out = {};
+    const bookIds = new Set([...Object.keys(remote||{}), ...Object.keys(local||{})]);
+    for(const id of bookIds){
+      out[id] = Object.assign({}, (remote||{})[id], (local||{})[id]);
+    }
+    return out;
+  }
+  function mergeActivity(remote, local){
+    const seen = new Set();
+    const combined = [...(remote||[]), ...(local||[])].filter(a=>{
+      const key = a.uid+'|'+a.bookId+'|'+a.ts;
+      if(seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+    combined.sort((a,b)=>a.ts-b.ts);
+    return combined.slice(-8);
+  }
 
   async function loadProfile(){
-    profile = (await storageGet('library-card', false)) || { name:null, code:null, visits:[], activeGroup:null, joinedGroups:[] };
-    if(!profile.visits) profile.visits = [];
+    profile = (await storageGet('profile', false)) || { activeGroup:null, joinedGroups:[] };
     if(!profile.joinedGroups) profile.joinedGroups = [];
-    const today = new Date().toISOString().slice(0,10);
-    if(profile.visits[profile.visits.length-1] !== today){
-      profile.visits.push(today);
-      if(profile.visits.length > 12) profile.visits = profile.visits.slice(-12);
-    }
-    await saveProfile();
   }
-  async function saveProfile(){ return storageSet('library-card', profile, false); }
+  async function saveProfile(){ return storageSet('profile', profile, false); }
 
   async function loadCoverCache(){ coverCache = (await storageGet('covers-' + groupId, true)) || {}; }
   async function saveCoverCache(){ return storageSet('covers-' + groupId, coverCache, true); }
@@ -649,32 +669,42 @@ try{
     return vals.reduce((a,b)=>a+b,0)/vals.length;
   }
 
-  // ================= sessions (library card numbers) =================
-  function nameForCode(code){ return sessions[code] || code || 'a club member'; }
+  // ================= identity (pegged to the signed-in Google account) =================
+  function myUid(){ return auth.currentUser ? auth.currentUser.uid : null; }
+  function myName(){ return auth.currentUser ? (auth.currentUser.displayName || 'Reader') : null; }
 
-  async function findOrCreateCode(name){
-    for(const [code, n] of Object.entries(sessions)){
-      if(n.toLowerCase() === name.toLowerCase()) return { code, saved:true };
-    }
-    let code; do{ code = genCode('XXI'); }while(sessions[code]);
-    sessions[code] = name;
-    const saved = await saveSessions();
-    return { code, saved };
+  // Ratings/votes/activity are keyed by uid. Other members can't read someone's private
+  // profile doc, so display names are mirrored into the shared group doc's `members` map
+  // whenever that person is active in the club — that's what lets everyone else see who's who.
+  function nameForUid(uid){
+    if(group && group.members && group.members[uid]) return group.members[uid].name;
+    return 'a club member';
+  }
+  async function ensureMembership(){
+    if(!group.members) group.members = {};
+    const uid = myUid();
+    if(!uid) return;
+    if(group.members[uid] && group.members[uid].name === myName()) return; // already up to date
+    group.members[uid] = { name: myName() };
+    await saveGroup();
   }
 
   // ================= groups =================
   function currentUrl(){ return window.location.origin + window.location.pathname; }
 
+  async function safeSaveProfile(){ return myUid() ? saveProfile() : true; }
+
   async function createGroup(name){
+    if(!myUid()) throw new Error('sign-in required to create a book club');
     let id; do{ id = genCode('BOOK'); }while(groupsRegistry[id]);
-    const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1 };
+    const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1, members:{} };
     groupId = id; group = newGroup;
     groupsRegistry[id] = { name, createdAt:Date.now() };
-    await Promise.all([saveGroup(), saveGroupsRegistry()]);
+    const [groupSaved, registrySaved] = await Promise.all([saveGroup(), saveGroupsRegistry()]);
     if(!profile.joinedGroups.includes(id)) profile.joinedGroups.push(id);
     profile.activeGroup = id;
-    await saveProfile();
-    return id;
+    await safeSaveProfile();
+    return { id, ok: groupSaved && registrySaved };
   }
 
   async function joinGroupByCode(code){
@@ -685,10 +715,12 @@ try{
       return { ok:false, msg:"Can't find a book club with that code." };
     }
     groupId = code; group = data;
-    if(!groupsRegistry[code]) groupsRegistry[code] = { name:data.name, createdAt:Date.now() };
-    if(!profile.joinedGroups.includes(code)) profile.joinedGroups.push(code);
-    profile.activeGroup = code;
-    await saveProfile();
+    if(myUid()){
+      if(!groupsRegistry[code]){ groupsRegistry[code] = { name:data.name, createdAt:Date.now() }; await saveGroupsRegistry(); }
+      if(!profile.joinedGroups.includes(code)) profile.joinedGroups.push(code);
+      profile.activeGroup = code;
+      await saveProfile();
+    } // else: still viewable without signing in — just not remembered as "yours" until they do
     return { ok:true };
   }
 
@@ -697,26 +729,26 @@ try{
     if(data && data.name !== 'Adley St Book Club'){
       data.name = 'Adley St Book Club';
       groupId = FLAGSHIP_ID; group = data;
-      await saveGroup();
+      if(myUid()) await saveGroup();
     }
     if(!data){
-      data = { name:'Adley St Book Club', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1 };
+      data = { name:'Adley St Book Club', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1, members:{} };
       groupId = FLAGSHIP_ID; group = data;
       groupsRegistry[FLAGSHIP_ID] = { name:'Adley St Book Club', createdAt:Date.now() };
-      await Promise.all([saveGroup(), saveGroupsRegistry()]);
+      if(myUid()){ await Promise.all([saveGroup(), saveGroupsRegistry()]); } // else: shown from memory only, seeded for real once someone signed-in interacts
     }else{
       groupId = FLAGSHIP_ID; group = data;
     }
     if(!profile.joinedGroups.includes(FLAGSHIP_ID)) profile.joinedGroups.push(FLAGSHIP_ID);
     profile.activeGroup = FLAGSHIP_ID;
-    await saveProfile();
+    await safeSaveProfile();
   }
 
   async function switchToGroup(id){
     const data = await loadGroup(id);
     if(!data){ toast('That book club could not be loaded.', true); return; }
     groupId = id; group = data; profile.activeGroup = id;
-    await saveProfile();
+    await safeSaveProfile();
     await activateGroup();
     document.getElementById('groupPop').classList.remove('open');
   }
@@ -725,11 +757,10 @@ try{
   function renderProfileWidget(){
     const loggedOut = document.getElementById('bannerLoggedOut');
     const loggedIn = document.getElementById('bannerLoggedIn');
-    if(profile.name){
+    if(myUid()){
       loggedOut.style.display = 'none';
       loggedIn.style.display = 'flex';
-      document.getElementById('profileName').textContent = profile.name;
-      document.getElementById('cardCodeInline').textContent = profile.code || '—';
+      document.getElementById('profileName').textContent = myName();
     }else{
       loggedOut.style.display = 'flex';
       loggedIn.style.display = 'none';
@@ -783,92 +814,60 @@ try{
     }
   });
 
-  async function seatAs(name){
-    const msg = document.getElementById('profileMsg');
-    const clash = Object.entries(sessions).find(([code,n]) => n.toLowerCase() === name.toLowerCase());
-    if(clash && clash[0] !== profile.code){
-      msg.textContent = `"${name}" already has a card here. If that's you, use "Already have a card number?" below instead. If not, add a bit more — e.g. "${name} G." — so you don't end up sharing an identity.`;
+  async function doGoogleSignIn(msg, btn){
+    const oldText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try{
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      msg.textContent = ''; msg.className = 'field-msg';
+      // onAuthStateChanged (wired below) picks up the new user and re-renders / redirects.
+    }catch(e){
+      console.error('google sign-in failed', e);
+      const code = e && e.code;
+      if(code === 'auth/popup-closed-by-user'){
+        msg.textContent = 'Sign-in was closed before finishing.';
+      }else if(code === 'auth/unauthorized-domain'){
+        msg.textContent = "This site isn't an authorized domain in Firebase yet — check Authentication settings.";
+      }else{
+        msg.textContent = "Google sign-in didn't work — try again.";
+      }
       msg.className = 'field-msg err';
-      return false;
+    }finally{
+      btn.disabled = false; btn.textContent = oldText;
     }
-    msg.textContent = ''; msg.className = 'field-msg';
-    profile.name = name;
-    renderProfileWidget(); // optimistic — show it immediately even if storage is slow
-    const result = await findOrCreateCode(name);
-    profile.code = result.code;
-    await saveProfile();
-    renderProfileWidget();
-    renderAll();
-    if(result.saved){
-      toast(`Welcome, ${name}.`);
-    } // else: storageSet already showed a specific error toast — don't overwrite it with a false "Welcome"
-    return true;
   }
 
-  document.getElementById('memberNew').addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('profileGo').click(); }
+  document.getElementById('googleSignInBtn').addEventListener('click', ()=>{
+    doGoogleSignIn(document.getElementById('profileMsg'), document.getElementById('googleSignInBtn'));
   });
-  document.getElementById('profileGo').addEventListener('click', async ()=>{
-    const msg = document.getElementById('profileMsg');
-    const name = document.getElementById('memberNew').value.trim();
-    if(!name){ msg.textContent = 'Type your name to take a seat.'; msg.className='field-msg err'; return; }
-    const goBtn = document.getElementById('profileGo');
-    goBtn.disabled = true; goBtn.textContent = 'Seating you…';
-    try{
-      const ok = await seatAs(name);
-      if(ok) document.getElementById('memberNew').value = '';
-    }catch(e){
-      console.error(e);
-      msg.textContent = 'Something went wrong seating you — try again.'; msg.className = 'field-msg err';
-    }finally{
-      goBtn.disabled = false; goBtn.textContent = 'Take my seat';
-    }
-  });
-
-  document.getElementById('reloginBtn').addEventListener('click', async ()=>{
-    const msg = document.getElementById('reloginMsg');
-    const raw = document.getElementById('reloginInput').value.trim().toUpperCase();
-    if(!raw) return;
-    msg.textContent = 'Checking…'; msg.className = 'field-msg';
-    await loadSessions();
-    const name = sessions[raw];
-    if(name){
-      profile.name = name; profile.code = raw;
-      await saveProfile();
-      renderProfileWidget(); renderAll();
-      msg.textContent = `Welcome back, ${name}.`; msg.className = 'field-msg ok';
-      setTimeout(()=>{ document.getElementById('bannerManage').style.display = 'none'; }, 700);
-    }else{
-      msg.textContent = "Can't find that card number."; msg.className = 'field-msg err';
-    }
+  document.getElementById('gateSignInBtn').addEventListener('click', ()=>{
+    doGoogleSignIn(document.getElementById('gateSignInMsg'), document.getElementById('gateSignInBtn'));
   });
 
   document.getElementById('manageToggle').addEventListener('click', ()=>{
     const panel = document.getElementById('bannerManage');
     panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
   });
-  document.getElementById('copyCardBtn').addEventListener('click', ()=>copyText(profile.code, 'Card number copied'));
   document.getElementById('bannerCopyInvite').addEventListener('click', ()=>copyText(groupId, 'Invite code copied'));
-  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-    profile.name = null; profile.code = null;
-    await saveProfile();
-    document.getElementById('bannerManage').style.display = 'none';
-    renderProfileWidget();
-    renderAll();
-    toast('Logged out on this device.');
+  document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+    try{ await signOut(auth); }
+    catch(e){ console.error('sign out failed', e); toast('Could not sign out — try again.', true); }
   });
 
   async function handleCreateGroup(nameInput, msgEl, btn){
     const name = nameInput.value.trim();
     if(!name){ msgEl.textContent = 'Give your book club a name.'; msgEl.className='field-msg err'; return; }
+    if(!myUid()){ msgEl.textContent = 'Sign in with Google first — up in the profile bar.'; msgEl.className='field-msg err'; return; }
     btn.disabled = true; const oldText = btn.textContent; btn.textContent = 'Creating…';
     try{
-      const id = await createGroup(name);
-      toast(`${name} is live — invite code ${id}`);
-      nameInput.value = '';
-      msgEl.textContent = ''; msgEl.className = 'field-msg';
-      document.getElementById('groupPop').classList.remove('open');
-      await activateGroup();
+      const result = await createGroup(name);
+      if(result.ok){
+        toast(`${name} is live — invite code ${result.id}`);
+        nameInput.value = '';
+        msgEl.textContent = ''; msgEl.className = 'field-msg';
+        document.getElementById('groupPop').classList.remove('open');
+        await activateGroup();
+      } // else: storageSet already surfaced the specific error — don't claim success over it
     }catch(e){
       console.error(e);
       msgEl.textContent = 'Could not create the book club — try again.'; msgEl.className = 'field-msg err';
@@ -927,8 +926,8 @@ try{
     document.getElementById('heroTitle').innerHTML = `${total} book${total===1?'':'s'}.<br>And counting.`;
     const allAvgs = group.books.map(b=>bookAvg(b.id)).filter(v=>v!==null);
     const groupAvg = allAvgs.length ? (allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length).toFixed(1) : '—';
-    const unrated = profile.code ? group.books.filter(b=>{
-      const r = group.ratings[b.id]; return !(r && r[profile.code]!==undefined);
+    const unrated = myUid() ? group.books.filter(b=>{
+      const r = group.ratings[b.id]; return !(r && r[myUid()]!==undefined);
     }).length : total;
     const el = document.getElementById('pulseStrip');
     el.innerHTML = `
@@ -936,8 +935,8 @@ try{
       <div class="pulse-item"><div class="pulse-num">${groupAvg}</div><div class="pulse-label">book club average</div></div>
       <div class="pulse-item">
         <div class="pulse-num">${unrated}</div>
-        <div class="pulse-label">${profile.name ? 'still awaiting your stamp' : 'pick a name to see yours'}</div>
-        ${profile.name && unrated>0 ? '<div class="pulse-nudge">worth a visit to the shelf &darr;</div>' : ''}
+        <div class="pulse-label">${myUid() ? 'still awaiting your stamp' : 'sign in to see yours'}</div>
+        ${myUid() && unrated>0 ? '<div class="pulse-nudge">worth a visit to the shelf &darr;</div>' : ''}
       </div>
       <div class="pulse-item"><div class="pulse-num">${group.activity.length}</div><div class="pulse-label">recent stamps logged</div></div>
     `;
@@ -1098,12 +1097,12 @@ try{
     const ratings = group.ratings[book.id] || {};
     const entries = Object.entries(ratings);
     const avg = entries.length ? (entries.reduce((a,[,v])=>a+v,0)/entries.length) : null;
-    const myScore = profile.code ? ratings[profile.code] : undefined;
+    const myScore = myUid() ? ratings[myUid()] : undefined;
     const stampButtons = [0,1,2,3,4,5].map(n=>
-      `<button class="stamp-btn ${myScore===n?'active':''}" data-n="${n}" ${profile.name?'':'disabled'}>${n}</button>`
+      `<button class="stamp-btn ${myScore===n?'active':''}" data-n="${n}" ${myUid()?'':'disabled'}>${n}</button>`
     ).join('');
     const membersHtml = entries.length
-      ? `<div class="members-list">${entries.map(([code,v])=>`<div class="row"><span>${nameForCode(code)}</span><span>${v} / 5</span></div>`).join('')}</div>`
+      ? `<div class="members-list">${entries.map(([uid,v])=>`<div class="row"><span>${nameForUid(uid)}</span><span>${v} / 5</span></div>`).join('')}</div>`
       : `<div class="members-list"><div class="empty-note">No stamps yet &mdash; be the first to rate it.</div></div>`;
 
     document.getElementById('modalCard').innerHTML = `
@@ -1117,18 +1116,19 @@ try{
         <span class="of5">/ 5</span>
         <span class="count">${entries.length} stamp${entries.length===1?'':'s'}</span>
       </div>
-      <div class="stamp-label">${profile.name? 'stamp your rating' : 'pick a name up top to stamp a rating'}</div>
+      <div class="stamp-label">${myUid()? 'stamp your rating' : 'sign in up top to stamp a rating'}</div>
       <div class="stamp-row">${stampButtons}</div>
       ${membersHtml}
     `;
     document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
     document.querySelectorAll('.stamp-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        if(!profile.code) return;
+        if(!myUid()) return;
         const n = parseInt(btn.dataset.n);
+        await ensureMembership();
         if(!group.ratings[book.id]) group.ratings[book.id] = {};
-        group.ratings[book.id][profile.code] = n;
-        group.activity.push({code:profile.code, bookId:book.id, rating:n, ts:Date.now()});
+        group.ratings[book.id][myUid()] = n;
+        group.activity.push({uid:myUid(), bookId:book.id, rating:n, ts:Date.now()});
         if(group.activity.length>8) group.activity = group.activity.slice(-8);
         const saved = await saveGroup();
         if(saved) toast('Stamped.');
@@ -1169,7 +1169,7 @@ try{
       return;
     }
     el.innerHTML = group.upcoming.map((u,idx)=>{
-      const voted = profile.code && u.votes.includes(profile.code);
+      const voted = myUid() && u.votes.includes(myUid());
       const approved = u.votes.length >= APPROVAL_VOTES_NEEDED;
       const readLabel = approved ? 'mark as read' : `needs ${APPROVAL_VOTES_NEEDED - u.votes.length} more vote${APPROVAL_VOTES_NEEDED - u.votes.length===1?'':'s'}`;
       return `<div class="up-card">
@@ -1177,40 +1177,43 @@ try{
         <div>
           <div class="up-title">${u.title}</div>
           <div class="up-author">${u.author}</div>
-          <div class="up-meta">suggested by ${nameForCode(u.suggestedByCode)}</div>
+          <div class="up-meta">suggested by ${nameForUid(u.suggestedByUid)}</div>
           <div class="up-actions">
-            <button class="vote-btn ${voted?'voted':''}" data-idx="${idx}" data-action="vote" ${profile.code?'':'disabled'}>
+            <button class="vote-btn ${voted?'voted':''}" data-idx="${idx}" data-action="vote" ${myUid()?'':'disabled'}>
               ${u.votes.length} vote${u.votes.length===1?'':'s'} ${voted?'&middot; yours':''}
             </button>
-            <button class="read-btn" data-idx="${idx}" data-action="read" ${(profile.code && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the shelf`}">${readLabel}</button>
+            <button class="read-btn" data-idx="${idx}" data-action="read" ${(myUid() && approved)?'':'disabled'} title="${approved?'':`Needs ${APPROVAL_VOTES_NEEDED} votes before it can move to the shelf`}">${readLabel}</button>
           </div>
         </div>
       </div>`;
     }).join('');
     el.querySelectorAll('[data-action="vote"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        if(!profile.code) return;
+        if(!myUid()) return;
         const idx = parseInt(btn.dataset.idx);
         const u = group.upcoming[idx];
-        const pos = u.votes.indexOf(profile.code);
-        if(pos>=0) u.votes.splice(pos,1); else u.votes.push(profile.code);
+        await ensureMembership();
+        const pos = u.votes.indexOf(myUid());
+        if(pos>=0) u.votes.splice(pos,1); else u.votes.push(myUid());
         await saveGroup();
         renderUpcoming();
       });
     });
     el.querySelectorAll('[data-action="read"]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        if(!profile.code) return;
+        if(!myUid()) return;
         const idx = parseInt(btn.dataset.idx);
         const u = group.upcoming[idx];
         if(u.votes.length < APPROVAL_VOTES_NEEDED) return; // guard against stale/disabled-bypass clicks
-        const newBook = { id: group.nextBookId++, title:u.title, author:u.author, selector:nameForCode(u.suggestedByCode), addedAt:Date.now() };
+        const newBook = { id: group.nextBookId++, title:u.title, author:u.author, selector:nameForUid(u.suggestedByUid), addedAt:Date.now() };
         group.books.push(newBook);
         group.upcoming.splice(idx,1);
         const key = coverKey(u.title, u.author);
         if(u.cover) coverCache[key] = { thumbnail:u.cover, year:u.year||null };
-        await Promise.all([saveGroup(), saveCoverCache()]);
-        toast(`Moved to the shelf.`);
+        const [groupSaved, coversSaved] = await Promise.all([saveGroup(), saveCoverCache()]);
+        if(groupSaved){
+          toast(`Moved to the shelf.`);
+        } // else: storageSet already surfaced the specific error
         renderUpcoming(); renderShelf(); renderLog(); renderPulse(); renderProfileWidget();
       });
     });
@@ -1220,15 +1223,16 @@ try{
     const title = document.getElementById('suggTitle').value.trim();
     const author = document.getElementById('suggAuthor').value.trim();
     if(!title || !author) return;
-    if(!profile.code){
+    if(!myUid()){
       document.getElementById('profileBanner').scrollIntoView({behavior:'smooth', block:'start'});
-      toast('Pick a name up top first.', true);
+      toast('Sign in up top first.', true);
       return;
     }
     const btn = document.getElementById('suggBtn');
     btn.textContent = 'Adding…'; btn.disabled = true;
     const meta = await fetchBookData(title, author);
-    group.upcoming.push({ title, author, suggestedByCode:profile.code, votes:[], cover:meta.thumbnail, year:meta.year });
+    await ensureMembership();
+    group.upcoming.push({ title, author, suggestedByUid:myUid(), votes:[], cover:meta.thumbnail, year:meta.year });
     await saveGroup();
     document.getElementById('suggTitle').value = '';
     document.getElementById('suggAuthor').value = '';
@@ -1270,6 +1274,27 @@ try{
   }
 
   // ================= boot =================
+  window.__adleyOnAuthChange = async function(user){
+    if(!bootDone) return; // initial boot() below handles the first resolution itself
+    renderProfileWidget();
+    if(user){
+      await loadProfile();
+      if(group){
+        await ensureMembership();
+      }else if(profile.activeGroup){
+        // Returning user, signing in from the gate screen — jump straight to their club
+        // instead of leaving them stuck on the generic picker.
+        const data = await loadGroup(profile.activeGroup);
+        if(data){ groupId = profile.activeGroup; group = data; await activateGroup(); return; }
+      }
+    }else{
+      profile = { activeGroup:null, joinedGroups:[] };
+    }
+    renderGroupWidget();
+    if(group){ renderPulse(); renderUpcoming(); renderLog(); renderShelf(); }
+  };
+
+  let bootDone = false;
   async function boot(){
     try{
       if(firebaseInitError){
@@ -1279,7 +1304,9 @@ try{
         return;
       }
 
-      await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry()]);
+      await authKnownOrTimeout();
+      await loadGroupsRegistry();
+      if(myUid()){ await loadProfile(); }
 
       const params = new URLSearchParams(window.location.search);
       const gParam = params.get('g');
@@ -1291,11 +1318,7 @@ try{
         if(data){ groupId = profile.activeGroup; group = data; }
       }
 
-      if(profile.name && !profile.code){
-        const result = await findOrCreateCode(profile.name);
-        profile.code = result.code;
-        await saveProfile();
-      }
+      if(group && myUid()){ await ensureMembership(); }
 
       if(group){
         await activateGroup();
@@ -1309,6 +1332,8 @@ try{
       document.getElementById('loadingIndicator').style.display = 'none';
       document.getElementById('gateScreen').style.display = 'block';
       toast('Something went wrong loading the club. Try refreshing.', true);
+    }finally{
+      bootDone = true;
     }
   }
   boot();
