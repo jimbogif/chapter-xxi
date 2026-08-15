@@ -46,6 +46,9 @@
   .banner-row select, .banner-row input[type=text]{ font-family:var(--sans); font-size:13.5px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--cream); min-height:36px; }
   .banner-go{ background:var(--forest); color:var(--cream); border:none; border-radius:3px; padding:0 12px; min-height:36px; font-family:var(--mono); font-size:12px; cursor:pointer; }
   .banner-go:hover{ background:var(--forest-light); }
+  .banner-or{ font-family:var(--mono); font-size:11px; opacity:0.4; }
+  .banner-google{ background:var(--cream); border:1px solid var(--line); border-radius:3px; padding:0 12px; min-height:36px; font-family:var(--sans); font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .banner-google:hover{ border-color:var(--forest); }
   .banner-sep{ opacity:0.35; }
   .banner-card-chip{ font-family:var(--mono); font-size:12px; background:var(--cream); border:1px dashed var(--stamp); border-radius:3px; padding:4px 8px; }
   .banner-card-chip strong{ color:var(--stamp); }
@@ -322,6 +325,8 @@
     <select id="memberSelect"></select>
     <input type="text" id="memberNew" placeholder="Type your name">
     <button class="banner-go" id="profileGo" type="button">Take my seat</button>
+    <span class="banner-or">or</span>
+    <button class="banner-google" id="googleSignInBtn" type="button">Sign in with Google</button>
     <span class="field-msg" id="profileMsg"></span>
   </div>
   <div class="banner-row" id="bannerLoggedIn" style="display:none;">
@@ -443,7 +448,44 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDqeqWJnoFdK3PyXWhPENeBFY2aZTji4gs",
+  authDomain: "adleyst-87a4b.firebaseapp.com",
+  projectId: "adleyst-87a4b",
+  storageBucket: "adleyst-87a4b.firebasestorage.app",
+  messagingSenderId: "338664922773",
+  appId: "1:338664922773:web:bcc26cdcfecd89b7b3459c",
+  measurementId: "G-24WMB3VSKF"
+};
+
+let fbApp, db, auth;
+let firebaseInitError = null;
+try{
+  fbApp = initializeApp(firebaseConfig);
+  db = getFirestore(fbApp);
+  auth = getAuth(fbApp);
+}catch(e){
+  console.error('Firebase init failed', e);
+  firebaseInitError = e;
+}
+
+let authReadyResolve;
+const authReady = new Promise(res => { authReadyResolve = res; });
+if(auth){
+  onAuthStateChanged(auth, (user) => { if(user) authReadyResolve(user); });
+  signInAnonymously(auth).catch(e => {
+    console.error('anonymous sign-in failed', e);
+  });
+}
+async function authReadyOrTimeout(){
+  return Promise.race([ authReady, new Promise(r => setTimeout(r, 8000)) ]);
+}
+
 (function(){
 
   // ================= constants =================
@@ -491,21 +533,27 @@
     toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 3200);
   }
 
-  // ================= storage helpers (defensive) =================
+  // ================= storage helpers (Firestore-backed, defensive) =================
+  function docRefFor(key, shared){
+    if(shared) return doc(db, 'shared', key);
+    if(!auth.currentUser) throw new Error('not signed in yet');
+    return doc(db, 'users', auth.currentUser.uid, 'private', key);
+  }
   async function storageGet(key, shared){
     try{
-      const res = await window.storage.get(key, shared);
-      return res && res.value ? JSON.parse(res.value) : null;
-    }catch(e){ return null; }
+      const snap = await getDoc(docRefFor(key, shared));
+      if(!snap.exists()) return null;
+      const data = snap.data();
+      return data && data.value ? JSON.parse(data.value) : null;
+    }catch(e){ console.error('storageGet failed for', key, e); return null; }
   }
   async function storageSet(key, value, shared){
     try{
-      const res = await window.storage.set(key, JSON.stringify(value), shared);
-      if(!res) throw new Error('storage.set returned empty result');
+      await setDoc(docRefFor(key, shared), { value: JSON.stringify(value), updatedAt: Date.now() });
       return true;
     }catch(e){
       console.error('storage write failed for', key, e);
-      toast('Could not save — your connection may have dropped. Try again.', true);
+      toast('Could not save — check your connection and try again.', true);
       return false;
     }
   }
@@ -697,39 +745,53 @@
     }
   });
 
+  async function seatAs(name){
+    const msg = document.getElementById('profileMsg');
+    const clash = Object.entries(sessions).find(([code,n]) => n.toLowerCase() === name.toLowerCase());
+    if(clash && clash[0] !== profile.code){
+      msg.textContent = `"${name}" already has a card here. If that's you, use "Already have a card number?" below instead. If not, add a bit more — e.g. "${name} G." — so you don't end up sharing an identity.`;
+      msg.className = 'field-msg err';
+      return false;
+    }
+    msg.textContent = ''; msg.className = 'field-msg';
+    profile.name = name;
+    renderProfileWidget(); // optimistic — show it immediately even if storage is slow
+    profile.code = await findOrCreateCode(name);
+    await saveProfile();
+    renderProfileWidget();
+    renderAll();
+    toast(`Welcome, ${name}.`);
+    return true;
+  }
+
   document.getElementById('profileGo').addEventListener('click', async ()=>{
     const msg = document.getElementById('profileMsg');
     const sel = document.getElementById('memberSelect').value;
     const typed = document.getElementById('memberNew').value.trim();
     const name = typed || sel;
     if(!name){ msg.textContent = 'Pick a name from the list, or type a new one.'; msg.className='field-msg err'; return; }
-
-    if(typed){
-      const clash = Object.entries(sessions).find(([code,n]) => n.toLowerCase() === typed.toLowerCase());
-      if(clash && clash[0] !== profile.code){
-        msg.textContent = `"${typed}" already has a card here. If that's you, use "Already have a card number?" below instead. If not, add a bit more — e.g. "${typed} G." — so you don't end up sharing an identity.`;
-        msg.className = 'field-msg err';
-        return;
-      }
-    }
-
-    msg.textContent = ''; msg.className = 'field-msg';
     const goBtn = document.getElementById('profileGo');
     goBtn.disabled = true; goBtn.textContent = 'Seating you…';
     try{
-      profile.name = name;
-      renderProfileWidget(); // optimistic — show it immediately even if storage is slow
-      profile.code = await findOrCreateCode(name);
-      await saveProfile();
-      document.getElementById('memberNew').value = '';
-      renderProfileWidget();
-      renderAll();
-      toast(`Welcome, ${name}.`);
+      const ok = await seatAs(name);
+      if(ok) document.getElementById('memberNew').value = '';
     }catch(e){
       console.error(e);
       msg.textContent = 'Something went wrong seating you — try again.'; msg.className = 'field-msg err';
     }finally{
       goBtn.disabled = false; goBtn.textContent = 'Take my seat';
+    }
+  });
+
+  document.getElementById('googleSignInBtn').addEventListener('click', async ()=>{
+    const msg = document.getElementById('profileMsg');
+    try{
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const gname = result.user.displayName || 'Reader';
+      await seatAs(gname);
+    }catch(e){
+      console.error('google sign-in failed', e);
+      msg.textContent = "Google sign-in didn't work — try again, or just type a name."; msg.className = 'field-msg err';
     }
   });
 
@@ -1172,6 +1234,16 @@
   // ================= boot =================
   async function boot(){
     try{
+      if(firebaseInitError){
+        toast('Could not connect to the club\'s database. Try refreshing.', true);
+        document.getElementById('gateScreen').style.display = 'block';
+        return;
+      }
+      await authReadyOrTimeout();
+      if(!auth.currentUser){
+        toast('Having trouble connecting — check your connection and refresh if things look stuck.', true);
+      }
+
       await Promise.all([loadProfile(), loadSessions(), loadGroupsRegistry(), loadCoverCache()]);
 
       const params = new URLSearchParams(window.location.search);
