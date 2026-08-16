@@ -142,8 +142,6 @@
 
   /* ---------- shelf toolbar ---------- */
   .shelf-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:18px 0 22px; }
-  .surprise-btn{ background:none; border:1px solid var(--forest); color:var(--forest); border-radius:20px; padding:9px 14px; font-family:var(--mono); font-size:12px; cursor:pointer; min-height:38px; }
-  .surprise-btn:hover{ background:var(--forest); color:var(--cream); }
   .shelf-footer-action{ margin-top:22px; padding-top:22px; border-top:1px dashed var(--line); }
   .add-book-btn{ background:var(--forest); color:var(--cream); border:none; border-radius:4px; padding:10px 14px; font-family:var(--mono); font-size:12.5px; letter-spacing:0.02em; cursor:pointer; min-height:40px; }
   .add-book-btn:hover{ background:var(--forest-light); }
@@ -494,7 +492,6 @@
       <div class="sub">tap a cover to read &amp; stamp a rating<span id="shelfFilterChip"></span></div>
     </div>
     <div class="shelf-toolbar">
-      <button id="surpriseBtn" class="surprise-btn" type="button">&#127922; Surprise me</button>
       <div class="shelf-controls">
         <select id="shelfSort">
           <option value="added">Reading order</option>
@@ -1540,24 +1537,6 @@ async function authKnownOrTimeout(){
   }
 
   // ================= surprise me =================
-  document.getElementById('surpriseBtn').addEventListener('click', ()=>{
-    if(!myUid()){
-      const banner = document.getElementById('profileBanner'); if(banner.scrollIntoView) banner.scrollIntoView({behavior:'smooth', block:'start'});
-      toast('Sign in up top first.', true);
-      return;
-    }
-    const unrated = group.books.filter(b => !(group.ratings[b.id] && group.ratings[b.id][myUid()] !== undefined));
-    if(!unrated.length){ toast("You've rated everything here already!"); return; }
-    const pick = unrated[Math.floor(Math.random() * unrated.length)];
-    memberFilter = null;
-    renderShelf();
-    const card = document.querySelector(`.cover-card[data-id="${pick.id}"]`);
-    if(card){
-      if(card.scrollIntoView) card.scrollIntoView({behavior:'smooth', block:'center'});
-      card.classList.add('surprise-highlight');
-      setTimeout(()=>card.classList.remove('surprise-highlight'), 2300);
-    }
-  });
 
   function renderMembers(){
     const el = document.getElementById('membersGrid');
