@@ -226,17 +226,8 @@
 
   /* ---------- currently reading ---------- */
   .cr-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
-  .cr-card{ background:var(--card); border:1px solid var(--line); border-left:3px solid var(--stamp); border-radius:4px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .cr-info{ min-width:0; }
-  .cr-title{ font-family:var(--serif); font-weight:700; font-size:15px; }
-  .cr-author{ font-family:var(--mono); font-size:12px; opacity:0.65; }
-  .cr-note{ font-family:var(--mono); font-size:11px; opacity:0.55; margin-top:3px; font-style:italic; }
-  .cr-actions{ display:flex; gap:8px; flex-wrap:wrap; }
-  .cr-finish-btn, .cr-remove-btn{ font-family:var(--mono); font-size:11px; letter-spacing:0.02em; border-radius:20px; padding:6px 11px; cursor:pointer; min-height:32px; }
-  .cr-finish-btn{ background:none; border:1px solid var(--forest); color:var(--forest); }
-  .cr-finish-btn:hover{ background:var(--forest); color:var(--cream); }
-  .cr-remove-btn{ background:none; border:1px solid var(--line); color:var(--ink); opacity:0.6; }
-  .cr-remove-btn:hover{ border-color:var(--stamp); color:var(--stamp); opacity:1; }
+  .cr-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .cr-actions{ display:flex; gap:6px; flex-wrap:wrap; }
   .cr-add-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .cr-add-row input{ font-family:var(--sans); font-size:13.5px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--cream); min-height:38px; flex:1 1 160px; }
 
@@ -1398,8 +1389,8 @@ async function authKnownOrTimeout(){
           ${item.note ? `<div class="cr-note">${escapeHtml(item.note)}</div>` : ''}
         </div>
         <div class="cr-actions">
-          <button type="button" class="cr-finish-btn" data-action="finish" data-id="${item.id}" ${myUid()?'':'disabled'}>Finished &mdash; move to shelf</button>
-          <button type="button" class="cr-remove-btn" data-action="cr-remove" data-id="${item.id}" ${myUid()?'':'disabled'}>remove</button>
+          <button type="button" class="read-btn" data-action="finish" data-id="${item.id}" ${myUid()?'':'disabled'}>Finished &mdash; move to shelf</button>
+          <button type="button" class="remove-btn" data-action="cr-remove" data-id="${item.id}" ${myUid()?'':'disabled'}>remove</button>
         </div>
       </div>`).join('');
     el.querySelectorAll('[data-action="finish"]').forEach(btn=>{
