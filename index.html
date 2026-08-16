@@ -148,8 +148,7 @@
   .add-book-btn{ background:var(--forest); color:var(--cream); border:none; border-radius:4px; padding:10px 14px; font-family:var(--mono); font-size:12.5px; letter-spacing:0.02em; cursor:pointer; min-height:40px; }
   .add-book-btn:hover{ background:var(--forest-light); }
   .shelf-controls{ display:flex; gap:8px; flex-wrap:wrap; }
-  .shelf-controls input, .shelf-controls select{ font-family:var(--sans); font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--card); min-height:38px; }
-  .shelf-controls input{ width:190px; }
+  .shelf-controls select{ font-family:var(--sans); font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--card); min-height:38px; }
 
   /* ---------- add-book modal form ---------- */
   .add-book-label{ display:block; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin:12px 0 5px; }
@@ -334,7 +333,6 @@
     .shelf-controls{ flex-direction:column; }
     .cr-add-row{ flex-direction:column; align-items:stretch; }
     .cr-add-row input{ width:100%; }
-    .shelf-controls input{ width:100%; }
     .cover-remove{ opacity:0.85; transform:scale(1); } /* no hover on touch — keep it reachable */
 
     .popover{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; border-radius:14px 14px 0 0; max-height:80vh; overflow-y:auto; box-shadow:0 -10px 30px rgba(31,36,33,0.25); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); }
@@ -498,7 +496,6 @@
     <div class="shelf-toolbar">
       <button id="surpriseBtn" class="surprise-btn" type="button">&#127922; Surprise me</button>
       <div class="shelf-controls">
-        <input type="text" id="shelfSearch" placeholder="Search title or author&hellip;">
         <select id="shelfSort">
           <option value="added">Reading order</option>
           <option value="rating-desc">Highest rated</option>
@@ -689,7 +686,6 @@ async function authKnownOrTimeout(){
   let groupId = null;
   let memberFilter = null;     // uid, when set the shelf shows only that member's rated books
   let shelfSort = 'added';
-  let shelfSearch = '';
   let coverCache = {};         // { "title|author": {thumbnail, year} }
 
   // ================= toast =================
@@ -1313,15 +1309,10 @@ async function authKnownOrTimeout(){
     }else{
       chip.innerHTML = '';
     }
-    const q = shelfSearch.trim().toLowerCase();
-    if(q){
-      books = books.filter(b => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
-    }
     books = sortBooks(books);
     if(!books.length){
       let msg = "Nothing in the book club yet. Add a book you've already read, or suggest one below in the Pipeline for everyone to vote on.";
       if(memberFilter) msg = `${nameForUid(memberFilter)} hasn't rated anything here yet.`;
-      else if(q) msg = `No books match "${shelfSearch.trim()}".`;
       el.innerHTML = `<div class="empty-shelf">${msg}</div>`;
       return;
     }
@@ -1559,7 +1550,6 @@ async function authKnownOrTimeout(){
     if(!unrated.length){ toast("You've rated everything here already!"); return; }
     const pick = unrated[Math.floor(Math.random() * unrated.length)];
     memberFilter = null;
-    shelfSearch = ''; document.getElementById('shelfSearch').value = '';
     renderShelf();
     const card = document.querySelector(`.cover-card[data-id="${pick.id}"]`);
     if(card){
@@ -1646,11 +1636,6 @@ async function authKnownOrTimeout(){
     btn.disabled = false; btn.textContent = 'reload cover art';
   });
 
-  let shelfSearchTimer;
-  document.getElementById('shelfSearch').addEventListener('input', (e)=>{
-    clearTimeout(shelfSearchTimer);
-    shelfSearchTimer = setTimeout(()=>{ shelfSearch = e.target.value; renderShelf(); }, 150);
-  });
   document.getElementById('shelfSort').addEventListener('change', (e)=>{
     shelfSort = e.target.value;
     renderShelf();
