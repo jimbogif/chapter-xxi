@@ -228,8 +228,6 @@
   .cr-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
   .cr-card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .cr-actions{ display:flex; gap:6px; flex-wrap:wrap; }
-  .cr-add-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .cr-add-row input{ font-family:var(--sans); font-size:13.5px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--cream); min-height:38px; flex:1 1 160px; }
 
   /* ---------- due next ---------- */
   .upcoming-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
@@ -320,8 +318,6 @@
     .shelf-toolbar{ flex-direction:column; align-items:stretch; }
     .add-book-btn{ width:100%; }
     .shelf-controls{ flex-direction:column; }
-    .cr-add-row{ flex-direction:column; align-items:stretch; }
-    .cr-add-row input{ width:100%; }
     .cover-remove{ opacity:0.85; transform:scale(1); } /* no hover on touch — keep it reachable */
 
     .popover{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; border-radius:14px 14px 0 0; max-height:80vh; overflow-y:auto; box-shadow:0 -10px 30px rgba(31,36,33,0.25); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); }
@@ -516,11 +512,11 @@
       <div class="sub">what the club's got open right now &mdash; add it by hand, no lookup needed</div>
     </div>
     <div class="cr-list" id="crList"></div>
-    <div class="cr-add-row">
+    <div class="suggest-form">
       <input type="text" id="crTitle" placeholder="Title">
       <input type="text" id="crAuthor" placeholder="Author">
       <input type="text" id="crNote" placeholder="Note (optional) &mdash; e.g. picked by Jimmy">
-      <button id="crAddBtn" class="add-book-btn" type="button">+ Add</button>
+      <button id="crAddBtn" type="button">Add</button>
     </div>
     <div class="field-msg" id="crMsg"></div>
   </section>
