@@ -192,6 +192,7 @@
   .cover-card:hover .cover-art, .cover-card:focus-visible .cover-art{ transform:translateY(-6px); box-shadow:0 14px 20px rgba(31,36,33,0.3), 0 1px 0 rgba(255,255,255,0.15) inset; }
   .cover-art img{ width:100%; height:100%; object-fit:cover; display:block; }
   .cover-fallback{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px; background:repeating-linear-gradient(135deg, var(--forest-light), var(--forest-light) 8px, var(--forest) 8px, var(--forest) 16px); }
+  .cover-img{ display:block; width:100%; height:100%; object-fit:cover; }
   .cover-fallback span{ font-family:var(--serif); font-weight:700; font-size:12px; color:var(--cream); line-height:1.25; }
   .cover-fallback.loading{ background:linear-gradient(90deg, var(--line) 25%, rgba(0,0,0,0.04) 37%, var(--line) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; }
   @keyframes shimmer{ 0%{background-position:100% 0;} 100%{background-position:0 0;} }
@@ -225,6 +226,22 @@
   .cover-diag{ font-family:var(--mono); font-size:11px; background:var(--card); border:1px dashed var(--stamp); border-radius:4px; padding:10px 12px; margin-top:12px; display:none; }
   .cover-diag.show{ display:block; }
   .empty-shelf{ font-family:var(--serif); font-style:italic; opacity:0.6; padding:20px 4px; }
+
+  /* ---------- currently reading ---------- */
+  .cr-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+  .cr-card{ background:var(--card); border:1px solid var(--line); border-left:3px solid var(--stamp); border-radius:4px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .cr-info{ min-width:0; }
+  .cr-title{ font-family:var(--serif); font-weight:700; font-size:15px; }
+  .cr-author{ font-family:var(--mono); font-size:12px; opacity:0.65; }
+  .cr-note{ font-family:var(--mono); font-size:11px; opacity:0.55; margin-top:3px; font-style:italic; }
+  .cr-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .cr-finish-btn, .cr-remove-btn{ font-family:var(--mono); font-size:11px; letter-spacing:0.02em; border-radius:20px; padding:6px 11px; cursor:pointer; min-height:32px; }
+  .cr-finish-btn{ background:none; border:1px solid var(--forest); color:var(--forest); }
+  .cr-finish-btn:hover{ background:var(--forest); color:var(--cream); }
+  .cr-remove-btn{ background:none; border:1px solid var(--line); color:var(--ink); opacity:0.6; }
+  .cr-remove-btn:hover{ border-color:var(--stamp); color:var(--stamp); opacity:1; }
+  .cr-add-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .cr-add-row input{ font-family:var(--sans); font-size:13.5px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--cream); min-height:38px; flex:1 1 160px; }
 
   /* ---------- due next ---------- */
   .upcoming-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
@@ -315,6 +332,8 @@
     .shelf-toolbar{ flex-direction:column; align-items:stretch; }
     .add-book-btn{ width:100%; }
     .shelf-controls{ flex-direction:column; }
+    .cr-add-row{ flex-direction:column; align-items:stretch; }
+    .cr-add-row input{ width:100%; }
     .shelf-controls input{ width:100%; }
     .cover-remove{ opacity:0.85; transform:scale(1); } /* no hover on touch — keep it reachable */
 
@@ -358,6 +377,7 @@
     </a>
     <nav class="tabs">
       <a href="#shelf">The Book Club</a>
+      <a href="#currently-reading">Currently Reading</a>
       <a href="#pipeline">Pipeline</a>
       <a href="#members">Members</a>
       <a href="#the-log">The Log</a>
@@ -503,6 +523,21 @@
     <div class="shelf-footer-action">
       <button id="addBookBtn" class="add-book-btn" type="button">+ Add a book you've read</button>
     </div>
+  </section>
+
+  <section id="currently-reading">
+    <div class="section-head">
+      <h2>Currently Reading</h2>
+      <div class="sub">what the club's got open right now &mdash; add it by hand, no lookup needed</div>
+    </div>
+    <div class="cr-list" id="crList"></div>
+    <div class="cr-add-row">
+      <input type="text" id="crTitle" placeholder="Title">
+      <input type="text" id="crAuthor" placeholder="Author">
+      <input type="text" id="crNote" placeholder="Note (optional) &mdash; e.g. picked by Jimmy">
+      <button id="crAddBtn" class="add-book-btn" type="button">+ Add</button>
+    </div>
+    <div class="field-msg" id="crMsg"></div>
   </section>
 
   <section id="pipeline">
@@ -773,12 +808,14 @@ async function authKnownOrTimeout(){
       const remote = await storageGet('group-' + groupId, true);
       if(remote){
         if(!structural){
-          // This save has no local intent to change books/upcoming — take the
-          // server's freshest copy of them so a stale tab can never silently
+          // This save has no local intent to change books/upcoming/currentlyReading —
+          // take the server's freshest copy of them so a stale tab can never silently
           // undo someone else's add/remove/vote just by rating a book.
           group.books = remote.books || group.books;
           group.upcoming = remote.upcoming || group.upcoming;
+          group.currentlyReading = remote.currentlyReading || group.currentlyReading || [];
           group.nextBookId = Math.max(group.nextBookId || 1, remote.nextBookId || 1);
+          group.nextCrId = Math.max(group.nextCrId || 1, remote.nextCrId || 1);
         }
         const validBookIds = new Set(group.books.map(b => String(b.id)));
         const mergedRatings = mergeRatings(remote.ratings, group.ratings);
@@ -879,7 +916,7 @@ async function authKnownOrTimeout(){
   async function createGroup(name){
     if(!myUid()) throw new Error('sign-in required to create a book club');
     let id; do{ id = genCode('BOOK'); }while(groupsRegistry[id]);
-    const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1, members:{} };
+    const newGroup = { name, books:[], ratings:{}, upcoming:[], activity:[], nextBookId:1, members:{}, currentlyReading:[], nextCrId:1 };
     groupId = id; group = newGroup;
     groupsRegistry[id] = { name, createdAt:Date.now() };
     const [groupSaved, registrySaved] = await Promise.all([saveGroup(true), saveGroupsRegistry()]);
@@ -925,7 +962,7 @@ async function authKnownOrTimeout(){
       if(myUid()) await saveGroup();
     }
     if(!data){
-      data = { name:'Adley St Book Club', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1, members:{} };
+      data = { name:'Adley St Book Club', books: FLAGSHIP_SEED, ratings:{}, upcoming:[], activity:[], nextBookId: FLAGSHIP_SEED.length+1, members:{}, currentlyReading:[], nextCrId:1 };
       groupId = FLAGSHIP_ID; group = data;
       groupsRegistry[FLAGSHIP_ID] = { name:'Adley St Book Club', createdAt:Date.now() };
       if(myUid()){ await Promise.all([saveGroup(true), saveGroupsRegistry()]); } // else: shown from memory only, seeded for real once someone signed-in interacts
@@ -1227,7 +1264,7 @@ async function authKnownOrTimeout(){
     const meta = coverCache[coverKey(b.title, b.author)];
     const badgeStyle = avg===null ? '' : `background:${ratingColor(avg)};`;
     const badge = `<div class="cover-badge ${avg===null?'unrated':''}" style="${badgeStyle}">${avg===null?'—':avg.toFixed(1)}</div>`;
-    const safeTitle = b.title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const safeTitle = escapeHtml(b.title);
     let artInner;
     if(meta === undefined){
       artInner = `<div class="cover-fallback loading"></div>`;
@@ -1349,6 +1386,91 @@ async function authKnownOrTimeout(){
           const restored = await saveGroup(true);
           renderShelf(); renderLog(); renderPulse(); renderMembers(); renderAwards(); renderActivity();
           if(restored) toast(`Restored "${removed.title}".`);
+        }
+      });
+    }
+  }
+
+  // ================= currently reading (manual, no cover lookup) =================
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function renderCurrentlyReading(){
+    const el = document.getElementById('crList');
+    const list = group.currentlyReading || [];
+    if(!list.length){
+      el.innerHTML = `<div class="empty-note">Nothing on the go right now &mdash; add what the club's currently reading below.</div>`;
+      return;
+    }
+    el.innerHTML = list.map(item => `
+      <div class="cr-card" data-id="${item.id}">
+        <div class="cr-info">
+          <div class="cr-title">${escapeHtml(item.title)}</div>
+          <div class="cr-author">${escapeHtml(item.author)}</div>
+          ${item.note ? `<div class="cr-note">${escapeHtml(item.note)}</div>` : ''}
+        </div>
+        <div class="cr-actions">
+          <button type="button" class="cr-finish-btn" data-action="finish" data-id="${item.id}" ${myUid()?'':'disabled'}>Finished &mdash; move to shelf</button>
+          <button type="button" class="cr-remove-btn" data-action="cr-remove" data-id="${item.id}" ${myUid()?'':'disabled'}>remove</button>
+        </div>
+      </div>`).join('');
+    el.querySelectorAll('[data-action="finish"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>finishCurrentlyReading(parseInt(btn.dataset.id)));
+    });
+    el.querySelectorAll('[data-action="cr-remove"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>removeCurrentlyReading(parseInt(btn.dataset.id)));
+    });
+  }
+  document.getElementById('crAddBtn').addEventListener('click', async ()=>{
+    const msg = document.getElementById('crMsg');
+    if(!myUid()){ msg.textContent = 'Sign in up top first.'; msg.className = 'field-msg err'; return; }
+    const title = document.getElementById('crTitle').value.trim();
+    const author = document.getElementById('crAuthor').value.trim();
+    const note = document.getElementById('crNote').value.trim();
+    if(!title || !author){ msg.textContent = 'Title and author are both needed.'; msg.className = 'field-msg err'; return; }
+    const btn = document.getElementById('crAddBtn');
+    btn.disabled = true; const oldText = btn.textContent; btn.textContent = 'Adding…';
+    if(!group.currentlyReading) group.currentlyReading = [];
+    if(!group.nextCrId) group.nextCrId = 1;
+    group.currentlyReading.push({ id: group.nextCrId++, title, author, note, addedByUid: myUid(), addedAt: Date.now() });
+    const saved = await saveGroup(true);
+    btn.disabled = false; btn.textContent = oldText;
+    if(saved){
+      toast('Added to Currently Reading.');
+      document.getElementById('crTitle').value = '';
+      document.getElementById('crAuthor').value = '';
+      document.getElementById('crNote').value = '';
+      msg.textContent = ''; msg.className = 'field-msg';
+      renderCurrentlyReading();
+    }
+  });
+  async function finishCurrentlyReading(id){
+    const idx = (group.currentlyReading||[]).findIndex(i => i.id === id);
+    if(idx < 0) return;
+    const item = group.currentlyReading[idx];
+    group.currentlyReading.splice(idx, 1);
+    const newBook = { id: group.nextBookId++, title:item.title, author:item.author, selector: item.note || myName(), addedAt: Date.now() };
+    group.books.push(newBook);
+    const saved = await saveGroup(true);
+    renderCurrentlyReading(); renderShelf(); renderLog(); renderPulse(); renderMembers(); renderAwards(); renderActivity();
+    if(saved) toast(`Moved "${item.title}" to the shelf.`);
+  }
+  async function removeCurrentlyReading(id){
+    const idx = (group.currentlyReading||[]).findIndex(i => i.id === id);
+    if(idx < 0) return;
+    const item = group.currentlyReading[idx];
+    group.currentlyReading.splice(idx, 1);
+    const saved = await saveGroup(true);
+    renderCurrentlyReading();
+    if(saved){
+      toast(`Removed "${item.title}".`, false, {
+        label: 'Undo',
+        onClick: async ()=>{
+          if(!group.currentlyReading) group.currentlyReading = [];
+          group.currentlyReading.splice(idx, 0, item);
+          const restored = await saveGroup(true);
+          renderCurrentlyReading();
+          if(restored) toast(`Restored "${item.title}".`);
         }
       });
     }
@@ -1799,6 +1921,7 @@ async function authKnownOrTimeout(){
     renderPulse();
     lastPerRow = booksPerRow();
     renderShelf();
+    renderCurrentlyReading();
     renderUpcoming();
     renderMembers();
     renderAwards();
@@ -1808,6 +1931,8 @@ async function authKnownOrTimeout(){
   }
 
   async function activateGroup(){
+    if(!group.currentlyReading) group.currentlyReading = [];
+    if(!group.nextCrId) group.nextCrId = 1;
     document.getElementById('loadingIndicator').style.display = 'none';
     document.getElementById('gateScreen').style.display = 'none';
     document.getElementById('appMain').style.display = 'block';
@@ -1852,7 +1977,7 @@ async function authKnownOrTimeout(){
       profile = { activeGroup:null, joinedGroups:[] };
     }
     renderGroupWidget();
-    if(group){ renderPulse(); renderUpcoming(); renderLog(); renderShelf(); renderMembers(); renderAwards(); renderActivity(); }
+    if(group){ renderPulse(); renderUpcoming(); renderLog(); renderShelf(); renderCurrentlyReading(); renderMembers(); renderAwards(); renderActivity(); }
   };
 
   let bootDone = false;
